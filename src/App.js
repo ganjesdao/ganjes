@@ -17,6 +17,9 @@ import Join from './pages/Landing/Join';
 import Joininvestor from './pages/Investor/Joininvestor';
 import Analytics from './pages/Investor/Analytics';
 import Proposal from './pages/Landing/Proposal';
+import Vote from './pages/Investor/Vote';
+import Myvoting from './pages/Investor/Myvoting';
+import Proposaldetails from './pages/proposer/Poposaldetails';
 
 
 
@@ -44,6 +47,7 @@ function App() {
         <Route path="/project" element={<Project />} />
         <Route path="/create-proposal" element={<CreateProposal />} />
         <Route path="/proposal-create" element={<Proposalcreate />} />
+        <Route path="/proposal-details" element={<Proposaldetails />} />
 
 
         //Investor routestor routes  
@@ -51,6 +55,8 @@ function App() {
         <Route path="/investor-register" element={<Signup />} />
         <Route path="/investor-dashboard" element={<InvestorDashboard />} />
         <Route path="/investor-analytics" element={<Analytics />} />
+        <Route path="/investor-vote" element={<Vote />} />
+        <Route path="/investor-voting-data" element={<Myvoting />} />
 
         <Route path="/investor-join" element={<Joininvestor />} />
         

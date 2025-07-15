@@ -8,6 +8,13 @@ import Footer from './component/Footer';
 import { toast } from 'react-toastify';
 import { getContractAddress, getGasPrice, isTestnet } from '../../utils/networks';
 
+// ERC20 ABI for token operations
+const tokenABI = [
+  "function balanceOf(address account) external view returns (uint256)",
+  "function symbol() external view returns (string)",
+  "function decimals() external view returns (uint8)"
+];
+
 
 function CreateProposal() {
     const [description, setDescription] = useState("");
@@ -18,7 +25,13 @@ function CreateProposal() {
     const [currentNetwork, setCurrentNetwork] = useState(null);
     const [contractAddress, setContractAddress] = useState("");
     const [isToggle, setIsToggle] = useState(false);
+    const [minTokensForProposal, setMinTokensForProposal] = useState(null);
+    const [userTokenBalance, setUserTokenBalance] = useState(null);
+    const [tokenSymbol, setTokenSymbol] = useState("GNJ");
+    const [tokenDecimals, setTokenDecimals] = useState(18);
+    const [tokenContract, setTokenContract] = useState(null);
     const authToken = sessionStorage.getItem('authToken');
+    const governanceTokenAddress = process.env.REACT_APP_TOKEN_ADDRESS;
 
     // Handle network change from Header component
     const handleNetworkChange = (network) => {
@@ -42,6 +55,64 @@ function CreateProposal() {
         // Optional: Handle Auth result
     };
 
+    // Function to fetch minimum tokens requirement and user's token balance
+    const fetchTokenRequirements = async () => {
+        try {
+            if (!window.ethereum || !contractAddress || !governanceTokenAddress) return;
+
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const userAddress = await signer.getAddress();
+            
+            // Get DAO contract instance
+            const contract = new ethers.Contract(contractAddress, daoABI, provider);
+            
+            // Get governance token contract instance
+            const tokenContractInstance = new ethers.Contract(governanceTokenAddress, tokenABI, provider);
+            setTokenContract(tokenContractInstance);
+            
+            // Fetch minimum tokens required for proposal
+            const minTokens = await contract.MIN_TOKENS_FOR_PROPOSAL();
+            setMinTokensForProposal(minTokens);
+            
+            // Fetch user's token balance
+            const balance = await tokenContractInstance.balanceOf(userAddress);
+            setUserTokenBalance(balance);
+            
+            // Fetch token symbol and decimals for display
+            try {
+                const symbol = await tokenContractInstance.symbol();
+                setTokenSymbol(symbol);
+                const decimals = await tokenContractInstance.decimals();
+                setTokenDecimals(decimals);
+            } catch (error) {
+                console.warn("Could not fetch token details:", error);
+            }
+            
+        } catch (error) {
+            console.error("Error fetching token requirements:", error);
+            toast.error("Failed to fetch token requirements");
+        }
+    };
+
+    // Check if user has enough tokens for proposal creation
+    const hasEnoughTokensForProposal = () => {
+        return userTokenBalance && minTokensForProposal && userTokenBalance >= minTokensForProposal;
+    };
+
+    // Format token amount for display
+    const formatTokenAmount = (amount) => {
+        if (!amount) return "0";
+        return ethers.formatUnits(amount, tokenDecimals);
+    };
+
+    // Effect to fetch token requirements when network/contract changes
+    useEffect(() => {
+        if (currentNetwork && contractAddress && governanceTokenAddress) {
+            fetchTokenRequirements();
+        }
+    }, [currentNetwork, contractAddress, governanceTokenAddress]);
+
      const createProject = async (e) => {
         e.preventDefault(); // Prevent form submission refresh
     
@@ -64,6 +135,18 @@ function CreateProposal() {
         }
         if (!fundingGoal || isNaN(fundingGoal) || Number(fundingGoal) <= 0) {
           toast.error("Funding goal must be a positive number!");
+          return;
+        }
+
+        // Check if user has enough tokens for proposal creation
+        if (!hasEnoughTokensForProposal()) {
+          const requiredTokens = formatTokenAmount(minTokensForProposal);
+          const currentBalance = formatTokenAmount(userTokenBalance);
+          toast.error(
+            `🪙 Insufficient ${tokenSymbol} tokens to create a proposal!\n` +
+            `Required: ${requiredTokens} ${tokenSymbol}\n` +
+            `Your Balance: ${currentBalance} ${tokenSymbol}`
+          );
           return;
         }
     
@@ -138,6 +221,9 @@ function CreateProposal() {
           setProjectName("");
           setProjectUrl("");
           setFundingGoal("");
+          
+          // Refresh token balance after successful proposal creation
+          fetchTokenRequirements();
         } catch (error) {
           console.error("Error creating project:", error);
           // Handle specific network and general errors
@@ -182,7 +268,7 @@ function CreateProposal() {
                             <div className="container-fluid px-4">
                                 <h1 className="mt-4">
                                     <i className="fas fa-vote-yea me-2"></i>
-                                    Proposal Management
+                                    Create Proposals
                                 </h1>
                                 <ol className="breadcrumb mb-4">
                                     <li className="breadcrumb-item active">Proposals Dashboard</li>
@@ -265,19 +351,101 @@ function CreateProposal() {
                                             </div>
                                         </div>
 
+                                        {/* Token Requirements Section */}
+                                        {currentNetwork && contractAddress && (
+                                            <div className="row mt-3">
+                                                <div className="col-12">
+                                                    <div className="card">
+                                                        <div className="card-header d-flex justify-content-between align-items-center">
+                                                            <h5 className="card-title mb-0">
+                                                                🪙 Token Requirements for Proposal Creation
+                                                            </h5>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={fetchTokenRequirements}
+                                                                className="btn btn-sm btn-outline-primary"
+                                                                title="Refresh token balance"
+                                                            >
+                                                                🔄 Refresh
+                                                            </button>
+                                                        </div>
+                                                        <div className="card-body">
+                                                            <div className="row">
+                                                                <div className="col-md-6">
+                                                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                                                        <span>📝 Required for Proposal:</span>
+                                                                        <strong className="text-primary">
+                                                                            {minTokensForProposal ? 
+                                                                                `${formatTokenAmount(minTokensForProposal)} ${tokenSymbol}` : 
+                                                                                "Loading..."
+                                                                            }
+                                                                        </strong>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="col-md-6">
+                                                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                                                        <span>💰 Your Balance:</span>
+                                                                        <strong className={hasEnoughTokensForProposal() ? "text-success" : "text-danger"}>
+                                                                            {userTokenBalance ? 
+                                                                                `${formatTokenAmount(userTokenBalance)} ${tokenSymbol}` : 
+                                                                                "Loading..."
+                                                                            }
+                                                                        </strong>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            {/* Token Status Indicator */}
+                                                            {minTokensForProposal && userTokenBalance && (
+                                                                <div className="mt-3">
+                                                                    {hasEnoughTokensForProposal() ? (
+                                                                        <div className="alert alert-success mb-0">
+                                                                            ✅ <strong>Eligibility Status:</strong> You have enough {tokenSymbol} tokens to create a proposal!
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="alert alert-danger mb-0">
+                                                                            ❌ <strong>Insufficient Tokens:</strong> You need {formatTokenAmount(minTokensForProposal - userTokenBalance)} more {tokenSymbol} tokens to create a proposal.
+                                                                            <br />
+                                                                            <small className="text-muted">
+                                                                                💡 <strong>Tip:</strong> {tokenSymbol} tokens are required for governance participation. You can earn them by contributing to the ecosystem or purchase them on supported exchanges.
+                                                                            </small>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            
+                                                            {/* Additional Information */}
+                                                            <div className="mt-3">
+                                                                <small className="text-muted">
+                                                                    📋 <strong>About Token Requirements:</strong><br />
+                                                                    • Proposal Creation: Requires {tokenSymbol} tokens to prevent spam and ensure serious proposals<br />
+                                                                    • Voting: Any {tokenSymbol} token holder can participate in voting<br />
+                                                                    • Voting Power: Your voting power is proportional to your token balance
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Submit Button */}
                                         <div className="row mt-3">
                                             <div className="col-12">
                                                 <button
                                                     type="button"
                                                     onClick={createProject}
-                                                    disabled={loading || !currentNetwork || !contractAddress}
-                                                    className={`btn ${loading ? 'btn-secondary' : 'btn-primary'} btn-lg w-100`}
+                                                    disabled={loading || !currentNetwork || !contractAddress || !hasEnoughTokensForProposal()}
+                                                    className={`btn ${loading ? 'btn-secondary' : hasEnoughTokensForProposal() ? 'btn-primary' : 'btn-danger'} btn-lg w-100`}
                                                 >
                                                     {loading ? (
                                                         <>
                                                             <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                                                             Creating Proposal...
+                                                        </>
+                                                    ) : !hasEnoughTokensForProposal() && userTokenBalance !== null ? (
+                                                        <>
+                                                            🚫 Insufficient {tokenSymbol} Tokens
                                                         </>
                                                     ) : (
                                                         <>

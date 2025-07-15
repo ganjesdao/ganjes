@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { FaArrowLeft, FaLeftLong } from 'react-icons/fa6'
 
 function Sidebar({ isToggle, setIsToggle }) {
@@ -6,10 +7,10 @@ function Sidebar({ isToggle, setIsToggle }) {
         <>
             <div className="sb-sidenav-menu">
                 <div className="nav">
-                    <a className="nav-link mt-3" href="/investor-dashboard">
+                    <Link className="nav-link mt-3" to="/investor-dashboard">
                         <div className="sb-nav-link-icon"><i className="fas fa-tachometer-alt" /></div>
                         Dashboard
-                    </a>
+                    </Link>
 
                     <a className="nav-link" href="">
                         <div className="sb-nav-link-icon">
@@ -18,19 +19,12 @@ function Sidebar({ isToggle, setIsToggle }) {
                         Multisig
                     </a>
 
-                     <a className="nav-link" href="/create-proposal">
+                     <Link className="nav-link" to="/investor-voting-data">
                         <div className="sb-nav-link-icon">
                             <i className="fas fa-chart-area" />
                         </div>
-                        Create Proposal
-                    </a>
-
-                     <a className="nav-link" href="/project">
-                        <div className="sb-nav-link-icon">
-                            <i className="fas fa-chart-area" />
-                        </div>
-                        Token Voting
-                    </a>
+                        My Voting
+                    </Link>
 
                      <a className="nav-link" href="">
                         <div className="sb-nav-link-icon">

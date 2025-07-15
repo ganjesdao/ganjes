@@ -11,12 +11,7 @@ function Sidebar({ isToggle, setIsToggle }) {
                         Dashboard
                     </a>
 
-                    <a className="nav-link" href="">
-                        <div className="sb-nav-link-icon">
-                            <i className="fas fa-chart-area" />
-                        </div>
-                        Multisig
-                    </a>
+                   
 
                      <a className="nav-link" href="/create-proposal">
                         <div className="sb-nav-link-icon">
