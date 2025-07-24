@@ -19,7 +19,7 @@ const tokenABI = [
   "function transferFrom(address from, address to, uint256 amount) external returns (bool)"
 ];
 
-function Myvoting() {
+function MyVoting() {
     const [support, setSupport] = useState(true);
      const navigate = useNavigate();
    const pId = localStorage.getItem('proposalId');
@@ -751,4 +751,4 @@ function Myvoting() {
   );
 }
 
-export default Myvoting;
+export default MyVoting;

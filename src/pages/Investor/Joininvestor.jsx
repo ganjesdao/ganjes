@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-function Joininvestor() {
+function JoinInvestor() {
     const baseurl = process.env.REACT_APP_BASE_API_URL;
 
     const [firstName, setFirstName] = useState('');
@@ -199,4 +199,4 @@ function Joininvestor() {
     );
 }
 
-export default Joininvestor
+export default JoinInvestor

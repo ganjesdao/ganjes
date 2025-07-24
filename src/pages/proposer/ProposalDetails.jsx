@@ -19,7 +19,7 @@ const tokenABI = [
   "function transferFrom(address from, address to, uint256 amount) external returns (bool)"
 ];
 
-function Proposaldetails() {
+function ProposalDetails() {
     const timestamp = Math.floor(Date.now() / 1000);
   const isoTimestamp =new Date().toISOString();
     const [support, setSupport] = useState(true);
@@ -733,4 +733,4 @@ function Proposaldetails() {
   );
 }
 
-export default Proposaldetails;
+export default ProposalDetails;

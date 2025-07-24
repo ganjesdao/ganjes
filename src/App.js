@@ -2,31 +2,38 @@ import './App.css';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useEffect } from 'react';
+import { initializeSecurity } from './utils/securityHeaders';
 import Landing from './pages/Landing/Landing';
 import Marketplace from './pages/Landing/Marketplace';
 import Signin from './pages/proposer/Signin';
-import Dashboard from './pages/proposer/Dashbaord';
+import Dashboard from './pages/proposer/Dashboard';
 import Register from './pages/proposer/Register';
 import CreateProposal from './pages/proposer/CreateProposal';
-import Project from './pages/Landing/Peoject';
-import Proposalcreate from './pages/proposer/ProposalCreate';
+import Project from './pages/Landing/Project';
+import ProposalCreate from './pages/proposer/ProposalCreate';
 import Login from './pages/Investor/Login';
 import Signup from './pages/Investor/Signup';
 import InvestorDashboard from './pages/Investor/Dashboard';
 import Join from './pages/Landing/Join';
-import Joininvestor from './pages/Investor/Joininvestor';
+import JoinInvestor from './pages/Investor/JoinInvestor';
 import Analytics from './pages/Investor/Analytics';
 import Proposal from './pages/Landing/Proposal';
 import Vote from './pages/Investor/Vote';
-import Myvoting from './pages/Investor/Myvoting';
-import Proposaldetails from './pages/proposer/Poposaldetails';
+import MyVoting from './pages/Investor/MyVoting';
+import ProposalDetails from './pages/proposer/ProposalDetails';
+import AdminApp from './admin/AdminApp';
 
 
 
-//investor routes
 
 
 function App() {
+  // Initialize security features on app load
+  useEffect(() => {
+    initializeSecurity();
+  }, []);
+
   return (
    <>
    <Router>
@@ -40,27 +47,27 @@ function App() {
 
 
 
-        //proposer routes
+        {/* proposer routes */}
         <Route path="/signin" element={<Signin />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/project" element={<Project />} />
         <Route path="/create-proposal" element={<CreateProposal />} />
-        <Route path="/proposal-create" element={<Proposalcreate />} />
-        <Route path="/proposal-details" element={<Proposaldetails />} />
+        <Route path="/proposal-create" element={<ProposalCreate />} />
+        <Route path="/proposal-details" element={<ProposalDetails />} />
 
-
-        //Investor routestor routes  
+        {/* Investor routes */}  
         <Route path="/investor-login" element={<Login />} />
         <Route path="/investor-register" element={<Signup />} />
         <Route path="/investor-dashboard" element={<InvestorDashboard />} />
         <Route path="/investor-analytics" element={<Analytics />} />
         <Route path="/investor-vote" element={<Vote />} />
-        <Route path="/investor-voting-data" element={<Myvoting />} />
+        <Route path="/investor-voting-data" element={<MyVoting />} />
 
-        <Route path="/investor-join" element={<Joininvestor />} />
+        <Route path="/investor-join" element={<JoinInvestor />} />
         
-
+        {/* Admin routes */}
+        <Route path="/admin/*" element={<AdminApp />} />
 
       </Routes>
     </Router>

@@ -1,18 +1,18 @@
 import React, { useEffect } from 'react';
+import { TokenManager } from '../utils/secureStorage';
 
-function Auth({ onProfileDataFetched }) {
+function Auth({ onProfileDataFetched, onAuthError }) {
   const baseurl = process.env.REACT_APP_BASE_API_URL;
 
   // Function to clear local data and redirect to Signin
   const handleLogout = () => {
-    sessionStorage.removeItem('authToken'); // Ensure token is removed
-    localStorage.clear();
+    TokenManager.logout(); // Use secure logout
     window.location.href = "/signin";
   };
 
   useEffect(() => {
     const fetchProfileData = async () => {
-      const authToken = sessionStorage.getItem('authToken');
+      const authToken = TokenManager.getAuthToken(); // Use secure token retrieval
 
       if (!authToken) {
         handleLogout();
@@ -41,6 +41,9 @@ function Auth({ onProfileDataFetched }) {
         const result = await response.json();
 
         if (result.status) {
+          // Store user info securely and extend token expiry
+          TokenManager.setUserInfo(result.user);
+          TokenManager.refreshTokenExpiry(60);
           onProfileDataFetched(result);
         } else {
           handleLogout();

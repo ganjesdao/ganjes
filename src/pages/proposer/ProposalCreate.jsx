@@ -22,7 +22,7 @@ const contractABI = [
 ];
 
 
-function ProjectCreate() {
+function ProposalCreate() {
   // State for form inputs
   const [description, setDescription] = useState("");
   const [projectName, setProjectName] = useState("");
@@ -429,4 +429,4 @@ function ProjectCreate() {
   );
 }
 
-export default ProjectCreate;
+export default ProposalCreate;
