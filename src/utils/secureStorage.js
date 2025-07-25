@@ -6,13 +6,13 @@
 
 import CryptoJS from 'crypto-js';
 
-// Generate a secure key based on browser fingerprinting and session data
+// Generate a secure key based on browser fingerprinting (stable across sessions)
 const generateSecureKey = () => {
   const browserInfo = {
     userAgent: navigator.userAgent.substring(0, 50), // Truncated for security
     language: navigator.language,
     platform: navigator.platform,
-    timestamp: Date.now().toString(36), // Add time component
+    // Remove timestamp for session persistence
   };
   
   // Create a hash-based key (not for production - use proper key management)
@@ -49,8 +49,8 @@ class SecureStorage {
         this.key
       ).toString();
 
-      // Store with prefix to avoid conflicts
-      sessionStorage.setItem(this.prefix + key, encrypted);
+      // Store with prefix to avoid conflicts - use localStorage for persistence
+      localStorage.setItem(this.prefix + key, encrypted);
       
       return true;
     } catch (error) {
@@ -66,7 +66,7 @@ class SecureStorage {
    */
   getItem(key) {
     try {
-      const encrypted = sessionStorage.getItem(this.prefix + key);
+      const encrypted = localStorage.getItem(this.prefix + key);
       
       if (!encrypted) {
         return null;
@@ -105,7 +105,7 @@ class SecureStorage {
    */
   removeItem(key) {
     try {
-      sessionStorage.removeItem(this.prefix + key);
+      localStorage.removeItem(this.prefix + key);
     } catch (error) {
       console.warn('SecureStorage: Failed to remove data', error.message);
     }
@@ -116,10 +116,10 @@ class SecureStorage {
    */
   clear() {
     try {
-      const keys = Object.keys(sessionStorage);
+      const keys = Object.keys(localStorage);
       keys.forEach(key => {
         if (key.startsWith(this.prefix)) {
-          sessionStorage.removeItem(key);
+          localStorage.removeItem(key);
         }
       });
     } catch (error) {

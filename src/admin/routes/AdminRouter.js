@@ -1,33 +1,34 @@
 /**
  * Admin Router
- * Main routing configuration for admin section
+ * Simplified routing for admin login and dashboard only
  */
 
-import React from 'react';
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 
 // Components
 import AdminLayout from '../components/layout/AdminLayout';
 import AdminLogin from '../components/auth/AdminLogin';
 import Dashboard from '../components/dashboard/Dashboard';
-import UserManagement from '../components/users/UserManagement';
-import ProposalManagement from '../components/proposals/ProposalManagement';
-import FinancialManagement from '../components/financial/FinancialManagement';
-import SecurityMonitoring from '../components/security/SecurityMonitoring';
-import Settings from '../components/settings/Settings';
-import NotFound from '../components/common/NotFound';
+import Proposers from '../components/proposers/Proposers';
+import Investors from '../components/investors/Investors';
+import Executed from '../components/executed/Executed';
 
 // Route Guards
 import ProtectedRoute from './ProtectedRoute';
-import RoleBasedRoute from './RoleBasedRoute';
 
 // Selectors
-import { selectIsAuthenticated, selectUser } from '../store/slices/authSlice';
+import { selectIsAuthenticated, restoreAuthFromStorage } from '../store/slices/authSlice';
 
 const AdminRouter = () => {
+  const dispatch = useDispatch();
   const isAuthenticated = useSelector(selectIsAuthenticated);
-  const user = useSelector(selectUser);
+
+  // Restore authentication state on app initialization
+  useEffect(() => {
+    dispatch(restoreAuthFromStorage());
+  }, [dispatch]);
 
   return (
     <Routes>
@@ -48,56 +49,28 @@ const AdminRouter = () => {
           <ProtectedRoute>
             <AdminLayout>
               <Routes>
-                {/* Dashboard - All authenticated admin users */}
+                {/* Dashboard - Simple admin dashboard */}
                 <Route 
                   path="/dashboard" 
                   element={<Dashboard />} 
                 />
                 
-                {/* User Management - Admin and Moderator roles */}
+                {/* Proposers Management */}
                 <Route 
-                  path="/users/*" 
-                  element={
-                    <RoleBasedRoute requiredRoles={['admin', 'moderator']}>
-                      <UserManagement />
-                    </RoleBasedRoute>
-                  } 
+                  path="/proposers" 
+                  element={<Proposers />} 
                 />
                 
-                {/* Proposal Management - Admin and Moderator roles */}
+                {/* Investors Management */}
                 <Route 
-                  path="/proposals/*" 
-                  element={
-                    <RoleBasedRoute requiredRoles={['admin', 'moderator']}>
-                      <ProposalManagement />
-                    </RoleBasedRoute>
-                  } 
+                  path="/investors" 
+                  element={<Investors />} 
                 />
                 
-                {/* Financial Management - Admin role only */}
+                {/* Executed Proposals */}
                 <Route 
-                  path="/treasury/*" 
-                  element={
-                    <RoleBasedRoute requiredRoles={['admin']}>
-                      <FinancialManagement />
-                    </RoleBasedRoute>
-                  } 
-                />
-                
-                {/* Security Monitoring - Admin role only */}
-                <Route 
-                  path="/security/*" 
-                  element={
-                    <RoleBasedRoute requiredRoles={['admin']}>
-                      <SecurityMonitoring />
-                    </RoleBasedRoute>
-                  } 
-                />
-                
-                {/* Settings - All authenticated admin users */}
-                <Route 
-                  path="/settings/*" 
-                  element={<Settings />} 
+                  path="/executed" 
+                  element={<Executed />} 
                 />
                 
                 {/* Default redirect to dashboard */}
@@ -106,10 +79,10 @@ const AdminRouter = () => {
                   element={<Navigate to="/admin/dashboard" replace />} 
                 />
                 
-                {/* 404 for unmatched admin routes */}
+                {/* 404 redirect to dashboard */}
                 <Route 
                   path="*" 
-                  element={<NotFound />} 
+                  element={<Navigate to="/admin/dashboard" replace />} 
                 />
               </Routes>
             </AdminLayout>

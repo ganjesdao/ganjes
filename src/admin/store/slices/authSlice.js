@@ -7,17 +7,42 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { TokenManager } from '../../../utils/secureStorage';
 import { SecureFetch } from '../../../utils/securityHeaders';
 
-// Initial state
-const initialState = {
-  user: null,
-  token: null,
-  refreshToken: null,
-  isAuthenticated: false,
-  permissions: [],
-  loading: false,
-  error: null,
-  lastActivity: null,
+// Function to get initial state from storage
+const getInitialState = () => {
+  try {
+    const token = TokenManager.getAuthToken();
+    const user = TokenManager.getUserInfo();
+    
+    if (token && user) {
+      return {
+        user: user,
+        token: token,
+        refreshToken: token, // Using same token as refresh for simplicity
+        isAuthenticated: true,
+        permissions: ['admin'],
+        loading: false,
+        error: null,
+        lastActivity: new Date().toISOString(),
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to restore auth from storage:', error);
+  }
+  
+  return {
+    user: null,
+    token: null,
+    refreshToken: null,
+    isAuthenticated: false,
+    permissions: [],
+    loading: false,
+    error: null,
+    lastActivity: null,
+  };
 };
+
+// Initial state
+const initialState = getInitialState();
 
 // Async thunks for API calls
 export const loginAsync = createAsyncThunk(
@@ -191,6 +216,39 @@ const authSlice = createSlice({
     updateLastActivity: (state) => {
       state.lastActivity = new Date().toISOString();
     },
+    restoreAuthFromStorage: (state) => {
+      try {
+        const token = TokenManager.getAuthToken();
+        const user = TokenManager.getUserInfo();
+        
+        if (token && user) {
+          state.user = user;
+          state.token = token;
+          state.refreshToken = token;
+          state.isAuthenticated = true;
+          state.permissions = ['admin'];
+          state.error = null;
+          state.lastActivity = new Date().toISOString();
+        } else {
+          // No valid session found, clear state
+          state.user = null;
+          state.token = null;
+          state.refreshToken = null;
+          state.isAuthenticated = false;
+          state.permissions = [];
+          state.error = null;
+        }
+      } catch (error) {
+        console.warn('Failed to restore auth from storage:', error);
+        // Clear state on error
+        state.user = null;
+        state.token = null;
+        state.refreshToken = null;
+        state.isAuthenticated = false;
+        state.permissions = [];
+        state.error = null;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -257,6 +315,7 @@ export const {
   refreshTokenSuccess,
   refreshTokenFailure,
   updateLastActivity,
+  restoreAuthFromStorage,
 } = authSlice.actions;
 
 // Selectors

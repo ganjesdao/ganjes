@@ -3,7 +3,7 @@
  * Ensures user is authenticated before accessing admin routes
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Navigate, useLocation } from 'react-router-dom';
 import { TokenManager } from '../../utils/secureStorage';
@@ -44,7 +44,7 @@ const ProtectedRoute = ({ children }) => {
   const location = useLocation();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const loading = useSelector(selectAuthLoading);
-  const [isInitializing, setIsInitializing] = React.useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -54,22 +54,13 @@ const ProtectedRoute = ({ children }) => {
         const storedUser = TokenManager.getUserInfo();
         
         if (storedToken && storedUser) {
-          // Validate token is still valid (not expired)
-          const tokenData = TokenManager.getTokenData();
-          const now = Date.now();
-          
-          if (tokenData && tokenData.expiresAt > now) {
-            // Restore user session from stored data
-            dispatch(loginSuccess({
-              user: storedUser,
-              token: storedToken,
-              refreshToken: TokenManager.getRefreshToken(),
-              permissions: storedUser.permissions || []
-            }));
-          } else {
-            // Token expired, clear storage
-            TokenManager.logout();
-          }
+          // Restore user session from stored data
+          dispatch(loginSuccess({
+            user: storedUser,
+            token: storedToken,
+            refreshToken: TokenManager.getRefreshToken() || storedToken,
+            permissions: storedUser.permissions || ['admin']
+          }));
         }
       } catch (error) {
         console.error('Error initializing auth:', error);

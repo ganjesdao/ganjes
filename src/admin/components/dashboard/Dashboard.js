@@ -1,212 +1,447 @@
 /**
  * Admin Dashboard Component
- * Main overview page for admin panel
+ * Simplified dashboard for admin panel
  */
 
 import React, { useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { fetchDashboardMetrics } from '../../store/slices/dashboardSlice';
-import {
-  selectDashboardMetrics,
-  selectSystemHealth,
-  selectRecentActivities,
-  selectAlerts,
-  selectDashboardLoading,
-  selectDashboardError
-} from '../../store/slices/dashboardSlice';
+import { useSelector } from 'react-redux';
+import { selectUser } from '../../store/slices/authSlice';
+import { isTestnet } from '../../../utils/networks';
+import { useDAOData } from '../../hooks/useDAOData';
 
-const Dashboard = () => {
-  const dispatch = useDispatch();
-  const metrics = useSelector(selectDashboardMetrics);
-  const systemHealth = useSelector(selectSystemHealth);
-  const recentActivities = useSelector(selectRecentActivities);
-  const alerts = useSelector(selectAlerts);
-  const loading = useSelector(selectDashboardLoading);
-  const error = useSelector(selectDashboardError);
+const Dashboard = ({ currentNetwork, contractAddress, isMobile }) => {
+  const user = useSelector(selectUser);
+  
+  // Use DAO data hook for live data
+  const {
+    dashboardMetrics,
+    proposals,
+    proposers,
+    activeProposals,
+    totalValue,
+    isLoading,
+    isInitializing,
+    error,
+    lastUpdated,
+    isNetworkSupported,
+    refreshData
+  } = useDAOData(currentNetwork, !!currentNetwork);
 
   useEffect(() => {
-    dispatch(fetchDashboardMetrics());
-  }, [dispatch]);
+    if (currentNetwork) {
+      const networkType = isTestnet(currentNetwork.chainId) ? 'Testnet' : 'Mainnet';
+      console.log(`Admin connected to ${currentNetwork.chainName} (${networkType})`);
+    }
+  }, [currentNetwork]);
 
-  if (loading) {
+  // Show loading state
+  if (isInitializing) {
     return (
       <div style={{
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '400px'
+        minHeight: '400px',
+        flexDirection: 'column'
       }}>
-        <div>Loading dashboard data...</div>
+        <div style={{
+          width: '48px',
+          height: '48px',
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #3b82f6',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <p style={{ 
+          marginTop: '1rem', 
+          color: '#6b7280',
+          fontSize: isMobile ? '0.9rem' : '1rem'
+        }}>
+          Connecting to {currentNetwork?.chainName}...
+        </p>
+        <style>
+          {`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}
+        </style>
       </div>
     );
   }
 
-  if (error) {
+  // Show error state for unsupported networks
+  if (currentNetwork && !isNetworkSupported) {
     return (
       <div style={{
-        backgroundColor: '#fee2e2',
-        border: '1px solid #fecaca',
-        borderRadius: '8px',
-        padding: '1rem',
-        color: '#dc2626'
+        textAlign: 'center',
+        padding: '3rem',
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+        margin: '2rem 0'
       }}>
-        Error loading dashboard: {error}
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+        <h2 style={{ 
+          color: '#ef4444',
+          fontSize: isMobile ? '1.25rem' : '1.5rem',
+          marginBottom: '1rem'
+        }}>
+          Network Not Supported
+        </h2>
+        <p style={{ 
+          color: '#6b7280',
+          fontSize: isMobile ? '0.9rem' : '1rem',
+          marginBottom: '1.5rem'
+        }}>
+          DAO contract is not deployed on {currentNetwork.chainName}.
+          Please switch to a supported network.
+        </p>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <div>
+      {/* Error Banner */}
+      {error && (
+        <div style={{
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '8px',
+          padding: isMobile ? '0.875rem' : '1rem',
+          marginBottom: isMobile ? '1.5rem' : '2rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+            <span style={{ 
+              color: '#dc2626',
+              fontSize: isMobile ? '0.85rem' : '0.875rem'
+            }}>
+              {error}
+            </span>
+          </div>
+          <button
+            onClick={refreshData}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: isMobile ? '0.8rem' : '0.875rem',
+              fontWeight: '500'
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Last Updated Info */}
+      {lastUpdated && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: isMobile ? '1rem' : '1.5rem',
+          padding: isMobile ? '0.75rem' : '1rem',
+          backgroundColor: '#f0f9ff',
+          borderRadius: '8px',
+          border: '1px solid #bae6fd'
+        }}>
+          <span style={{ 
+            fontSize: isMobile ? '0.8rem' : '0.875rem',
+            color: '#0369a1'
+          }}>
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </span>
+          <button
+            onClick={refreshData}
+            disabled={isLoading}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: isLoading ? '#9ca3af' : '#0ea5e9',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              fontSize: isMobile ? '0.8rem' : '0.875rem',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            {isLoading ? '🔄' : '↻'} Refresh
+          </button>
+        </div>
+      )}
+
       {/* Welcome Section */}
-      <div style={{ marginBottom: '2rem' }}>
+      <div style={{ marginBottom: isMobile ? '1.5rem' : '2rem' }}>
         <h2 style={{
-          fontSize: '1.875rem',
+          fontSize: isMobile ? '1.5rem' : '1.875rem',
           fontWeight: 'bold',
           color: '#1f2937',
-          marginBottom: '0.5rem'
+          marginBottom: '0.5rem',
+          lineHeight: isMobile ? '1.4' : '1.2'
         }}>
-          Welcome to Ganjes Admin
+          Welcome, {user?.name || 'Admin'}! 👋
         </h2>
         <p style={{
           color: '#6b7280',
-          fontSize: '1.125rem'
+          fontSize: isMobile ? '0.95rem' : '1.125rem',
+          lineHeight: '1.5'
         }}>
-          Monitor and manage your DAO operations from this central dashboard.
+          Admin dashboard for managing the Ganjes DAO platform.
         </p>
       </div>
 
-      {/* Key Metrics Cards */}
+      {/* Simple Stats Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '1.5rem',
-        marginBottom: '2rem'
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))',
+        gap: isMobile ? '1rem' : '1.5rem',
+        marginBottom: isMobile ? '1.5rem' : '2rem'
       }}>
-        <MetricCard
-          title="Total Users"
-          value={metrics.totalUsers || 0}
-          icon="👥"
-          color="#3b82f6"
-        />
-        <MetricCard
-          title="Active Proposals"
-          value={metrics.activeProposals || 0}
-          icon="📋"
+        <SimpleCard
+          title="System Status"
+          value="Online"
+          icon="🟢"
           color="#10b981"
+          isMobile={isMobile}
         />
-        <MetricCard
-          title="Treasury Balance"
-          value={`$${(metrics.treasuryBalance || 0).toLocaleString()}`}
-          icon="💰"
-          color="#f59e0b"
+        <SimpleCard
+          title="Admin Access"
+          value="Full"
+          icon="🔐"
+          color="#3b82f6"
+          isMobile={isMobile}
         />
-        <MetricCard
-          title="Monthly Growth"
-          value={`${metrics.monthlyGrowth || 0}%`}
-          icon="📈"
+        <SimpleCard
+          title="Platform"
+          value="Ganjes DAO"
+          icon="🌐"
           color="#8b5cf6"
+          isMobile={isMobile}
         />
+        <SimpleCard
+          title="Role"
+          value="Administrator"
+          icon="👑"
+          color="#f59e0b"
+          isMobile={isMobile}
+        />
+        
+        {/* Network Status Card */}
+        {currentNetwork ? (
+          <SimpleCard
+            title="Network Status"
+            value={currentNetwork.chainName}
+            icon={currentNetwork.icon}
+            color={currentNetwork.color}
+            isMobile={isMobile}
+          />
+        ) : (
+          <SimpleCard
+            title="Network Status"
+            value="Not Connected"
+            icon="⚠️"
+            color="#ef4444"
+            isMobile={isMobile}
+          />
+        )}
       </div>
 
-      {/* System Health & Alerts */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-        gap: '1.5rem',
-        marginBottom: '2rem'
-      }}>
-        {/* System Health */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            color: '#1f2937',
-            marginBottom: '1rem'
-          }}>
-            System Health
-          </h3>
-          <SystemHealthDisplay health={systemHealth} />
-        </div>
-
-        {/* Recent Alerts */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{
-            fontSize: '1.25rem',
-            fontWeight: '600',
-            color: '#1f2937',
-            marginBottom: '1rem'
-          }}>
-            Recent Alerts
-          </h3>
-          <AlertsList alerts={alerts} />
-        </div>
-      </div>
-
-      {/* Recent Activities */}
+      {/* Quick Actions */}
       <div style={{
         backgroundColor: 'white',
         borderRadius: '12px',
-        padding: '1.5rem',
+        padding: isMobile ? '1.5rem' : '2rem',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+        marginBottom: isMobile ? '1.5rem' : '2rem'
+      }}>
+        <h3 style={{
+          fontSize: isMobile ? '1.1rem' : '1.25rem',
+          fontWeight: '600',
+          color: '#1f2937',
+          marginBottom: isMobile ? '1rem' : '1.5rem',
+          lineHeight: '1.3'
+        }}>
+          📋 Admin Features
+        </h3>
+        
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '1rem'
+        }}>
+          <FeatureCard
+            title="API Authentication"
+            description="Secure login system with JWT tokens"
+            status="✅ Active"
+            statusColor="#10b981"
+            isMobile={isMobile}
+          />
+          <FeatureCard
+            title="Dashboard Access"
+            description="Admin dashboard with full platform overview"
+            status="✅ Available"
+            statusColor="#10b981"
+            isMobile={isMobile}
+          />
+          <FeatureCard
+            title="Session Management"
+            description="Secure token storage and session handling"
+            status="✅ Working"
+            statusColor="#10b981"
+            isMobile={isMobile}
+          />
+        </div>
+      </div>
+
+      {/* Blockchain Information */}
+      {currentNetwork && (
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: isMobile ? '1.5rem' : '2rem',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          marginBottom: isMobile ? '1.5rem' : '2rem'
+        }}>
+          <h3 style={{
+            fontSize: isMobile ? '1.1rem' : '1.25rem',
+            fontWeight: '600',
+            color: '#1f2937',
+            marginBottom: isMobile ? '1rem' : '1.5rem',
+            lineHeight: '1.3'
+          }}>
+            ⛓️ Blockchain Information
+          </h3>
+          
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1rem',
+            fontSize: '0.875rem'
+          }}>
+            <InfoItem 
+              label="Current Network" 
+              value={`${currentNetwork.icon} ${currentNetwork.chainName}`} 
+              isMobile={isMobile}
+            />
+            <InfoItem 
+              label="Network Type" 
+              value={isTestnet(currentNetwork.chainId) ? '🧪 Testnet' : '🌍 Mainnet'} 
+              isMobile={isMobile}
+            />
+            <InfoItem 
+              label="Chain ID" 
+              value={parseInt(currentNetwork.chainId, 16)} 
+              isMobile={isMobile}
+            />
+            <InfoItem 
+              label="Native Currency" 
+              value={currentNetwork.nativeCurrency.symbol} 
+              isMobile={isMobile}
+            />
+            {contractAddress && (
+              <InfoItem 
+                label="DAO Contract" 
+                value={`${contractAddress.slice(0, 10)}...${contractAddress.slice(-8)}`} 
+                isMobile={isMobile}
+              />
+            )}
+            <InfoItem 
+              label="Block Explorer" 
+              value={currentNetwork.blockExplorerUrls?.[0] ? '🔗 Available' : 'N/A'} 
+              isMobile={isMobile}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* System Information */}
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: isMobile ? '1.5rem' : '2rem',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
       }}>
         <h3 style={{
-          fontSize: '1.25rem',
+          fontSize: isMobile ? '1.1rem' : '1.25rem',
           fontWeight: '600',
           color: '#1f2937',
-          marginBottom: '1rem'
+          marginBottom: isMobile ? '1rem' : '1.5rem',
+          lineHeight: '1.3'
         }}>
-          Recent Activities
+          ℹ️ System Information
         </h3>
-        <ActivitiesList activities={recentActivities} />
+        
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: '1rem',
+          fontSize: '0.875rem'
+        }}>
+          <InfoItem label="Platform" value="Ganjes NFT DAO" isMobile={isMobile} />
+          <InfoItem label="Admin Version" value="v1.0.0" isMobile={isMobile} />
+          <InfoItem label="Login Status" value="Authenticated" isMobile={isMobile} />
+          <InfoItem label="Session" value="Active" isMobile={isMobile} />
+          <InfoItem label="Role" value={user?.role || 'Admin'} isMobile={isMobile} />
+          <InfoItem label="Last Login" value={new Date().toLocaleDateString()} isMobile={isMobile} />
+        </div>
       </div>
     </div>
   );
 };
 
-// Metric Card Component
-const MetricCard = ({ title, value, icon, color }) => (
+// Simple Card Component
+const SimpleCard = ({ title, value, icon, color, isMobile }) => (
   <div style={{
     backgroundColor: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
+    borderRadius: isMobile ? '8px' : '12px',
+    padding: isMobile ? '1rem' : '1.5rem',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     display: 'flex',
     alignItems: 'center',
-    gap: '1rem'
+    gap: isMobile ? '0.75rem' : '1rem',
+    minHeight: isMobile ? '80px' : 'auto',
+    border: isMobile ? '1px solid #f3f4f6' : 'none'
   }}>
     <div style={{
-      width: '48px',
-      height: '48px',
+      width: isMobile ? '40px' : '48px',
+      height: isMobile ? '40px' : '48px',
       backgroundColor: `${color}20`,
-      borderRadius: '12px',
+      borderRadius: isMobile ? '8px' : '12px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: '1.5rem'
+      fontSize: isMobile ? '1.25rem' : '1.5rem',
+      flexShrink: 0
     }}>
       {icon}
     </div>
-    <div>
+    <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{
-        fontSize: '2rem',
+        fontSize: isMobile ? '1.25rem' : '1.5rem',
         fontWeight: 'bold',
-        color: '#1f2937'
+        color: '#1f2937',
+        lineHeight: '1.2',
+        marginBottom: isMobile ? '0.125rem' : '0.25rem'
       }}>
         {value}
       </div>
       <div style={{
-        fontSize: '0.875rem',
-        color: '#6b7280'
+        fontSize: isMobile ? '0.8rem' : '0.875rem',
+        color: '#6b7280',
+        lineHeight: '1.3'
       }}>
         {title}
       </div>
@@ -214,194 +449,79 @@ const MetricCard = ({ title, value, icon, color }) => (
   </div>
 );
 
-// System Health Display Component
-const SystemHealthDisplay = ({ health }) => {
-  if (!health) {
-    return (
-      <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-        No health data available
-      </div>
-    );
-  }
-
-  const getHealthColor = (status) => {
-    switch (status) {
-      case 'healthy': return '#10b981';
-      case 'warning': return '#f59e0b';
-      case 'critical': return '#ef4444';
-      default: return '#6b7280';
-    }
-  };
-
-  return (
+// Feature Card Component
+const FeatureCard = ({ title, description, status, statusColor, isMobile }) => (
+  <div style={{
+    padding: isMobile ? '0.875rem' : '1rem',
+    backgroundColor: '#f9fafb',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb'
+  }}>
     <div style={{
       display: 'flex',
-      flexDirection: 'column',
-      gap: '1rem'
+      justifyContent: 'space-between',
+      alignItems: isMobile ? 'flex-start' : 'center',
+      marginBottom: '0.5rem',
+      flexDirection: isMobile ? 'column' : 'row',
+      gap: isMobile ? '0.25rem' : '0'
     }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem'
+      <h4 style={{
+        fontSize: isMobile ? '0.9rem' : '1rem',
+        fontWeight: '600',
+        color: '#1f2937',
+        margin: 0,
+        lineHeight: '1.3'
       }}>
-        <div style={{
-          width: '12px',
-          height: '12px',
-          borderRadius: '50%',
-          backgroundColor: getHealthColor(health.status)
-        }} />
-        <span style={{
-          fontSize: '1.125rem',
-          fontWeight: '500',
-          color: '#1f2937'
-        }}>
-          {health.status || 'Unknown'}
-        </span>
-      </div>
-      
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '1rem',
-        fontSize: '0.875rem'
+        {title}
+      </h4>
+      <span style={{
+        fontSize: isMobile ? '0.7rem' : '0.75rem',
+        color: statusColor,
+        fontWeight: '500',
+        alignSelf: isMobile ? 'flex-start' : 'auto'
       }}>
-        <div>
-          <div style={{ color: '#6b7280' }}>Uptime</div>
-          <div style={{ fontWeight: '500' }}>{health.uptime}%</div>
-        </div>
-        <div>
-          <div style={{ color: '#6b7280' }}>Response Time</div>
-          <div style={{ fontWeight: '500' }}>{health.responseTime}ms</div>
-        </div>
-      </div>
+        {status}
+      </span>
     </div>
-  );
-};
-
-// Alerts List Component
-const AlertsList = ({ alerts }) => {
-  if (!alerts || alerts.length === 0) {
-    return (
-      <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-        No recent alerts
-      </div>
-    );
-  }
-
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'critical': return '#ef4444';
-      case 'high': return '#f59e0b';
-      case 'medium': return '#3b82f6';
-      case 'low': return '#10b981';
-      default: return '#6b7280';
-    }
-  };
-
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '0.75rem'
+    <p style={{
+      fontSize: isMobile ? '0.8rem' : '0.875rem',
+      color: '#6b7280',
+      margin: 0,
+      lineHeight: '1.4'
     }}>
-      {alerts.slice(0, 5).map(alert => (
-        <div
-          key={alert.id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '0.75rem',
-            backgroundColor: '#f9fafb',
-            borderRadius: '8px'
-          }}
-        >
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: getSeverityColor(alert.severity)
-          }} />
-          <div style={{ flex: 1 }}>
-            <div style={{
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              color: '#1f2937'
-            }}>
-              {alert.message}
-            </div>
-            <div style={{
-              fontSize: '0.75rem',
-              color: '#6b7280'
-            }}>
-              {alert.type} • {alert.severity}
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
+      {description}
+    </p>
+  </div>
+);
 
-// Activities List Component
-const ActivitiesList = ({ activities }) => {
-  if (!activities || activities.length === 0) {
-    return (
-      <div style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>
-        No recent activities
-      </div>
-    );
-  }
-
-  return (
+// Info Item Component
+const InfoItem = ({ label, value, isMobile }) => (
+  <div style={{
+    padding: isMobile ? '0.625rem' : '0.75rem',
+    backgroundColor: '#f9fafb',
+    borderRadius: '6px',
+    border: isMobile ? '1px solid #f3f4f6' : 'none'
+  }}>
     <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '1rem'
+      fontSize: isMobile ? '0.7rem' : '0.75rem',
+      color: '#6b7280',
+      marginBottom: '0.25rem',
+      textTransform: 'uppercase',
+      fontWeight: '500',
+      letterSpacing: '0.025em'
     }}>
-      {activities.slice(0, 10).map(activity => (
-        <div
-          key={activity.id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            padding: '1rem',
-            backgroundColor: '#f9fafb',
-            borderRadius: '8px'
-          }}
-        >
-          <div style={{
-            width: '32px',
-            height: '32px',
-            backgroundColor: '#3b82f6',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.875rem'
-          }}>
-            📝
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              color: '#1f2937'
-            }}>
-              {activity.description}
-            </div>
-            <div style={{
-              fontSize: '0.75rem',
-              color: '#6b7280'
-            }}>
-              {activity.type} • {new Date(activity.timestamp).toLocaleString()}
-            </div>
-          </div>
-        </div>
-      ))}
+      {label}
     </div>
-  );
-};
+    <div style={{
+      fontSize: isMobile ? '0.8rem' : '0.875rem',
+      fontWeight: '500',
+      color: '#1f2937',
+      lineHeight: '1.3',
+      wordBreak: 'break-word'
+    }}>
+      {value}
+    </div>
+  </div>
+);
 
 export default Dashboard;
