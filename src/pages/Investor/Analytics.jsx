@@ -17,6 +17,15 @@ function Analytics() {
     const [loading, setLoading] = useState(false);
     const [currentNetwork, setCurrentNetwork] = useState(null);
     const [contractAddress, setContractAddress] = useState("");
+    const [analytics, setAnalytics] = useState({
+        totalProposals: 0,
+        activeProposals: 0,
+        executedProposals: 0,
+        totalFunded: '0',
+        totalInvestors: 0,
+        successRate: '0',
+        averageFunding: '0'
+    });
     const authToken = sessionStorage.getItem('authToken');
 
     const handleProfileDataFetched = (data) => {
@@ -92,30 +101,112 @@ function Analytics() {
         return currentNetwork && contractAddress && contractAddress !== '0x0000000000000000000000000000000000000000';
     };
 
+    // Fetch analytics data from DAO contract
+    const fetchAnalyticsData = async (contract) => {
+        try {
+            // Get basic metrics
+            const [
+                totalProposals,
+                totalFunded,
+                allProposalIds,
+                totalInvestors
+            ] = await Promise.all([
+                contract.getTotalProposals().catch(() => 0),
+                contract.getTotalFundedAmount().catch(() => 0),
+                contract.getAllProposalIds().catch(() => []),
+                contract.getActiveInvestorCount().catch(() => 0)
+            ]);
+
+            // Calculate active and executed proposals
+            let activeCount = 0;
+            let executedCount = 0;
+            const currentTime = Math.floor(Date.now() / 1000);
+
+            for (const id of allProposalIds) {
+                try {
+                    const basicDetails = await contract.getProposalBasicDetails(id);
+                    if (basicDetails.executed) {
+                        executedCount++;
+                    } else if (Number(basicDetails.endTime) > currentTime) {
+                        activeCount++;
+                    }
+                } catch (error) {
+                    console.warn(`Failed to check proposal ${id}:`, error);
+                }
+            }
+
+            // Calculate success rate and average funding
+            const successRate = totalProposals > 0 ? ((executedCount / totalProposals) * 100).toFixed(1) : '0';
+            const averageFunding = executedCount > 0 ? (parseFloat(ethers.formatEther(totalFunded)) / executedCount).toFixed(4) : '0';
+
+            const analyticsData = {
+                totalProposals: Number(totalProposals),
+                activeProposals: activeCount,
+                executedProposals: executedCount,
+                totalFunded: ethers.formatEther(totalFunded),
+                totalInvestors: Number(totalInvestors),
+                successRate,
+                averageFunding
+            };
+
+            setAnalytics(analyticsData);
+            console.log('Analytics Data:', analyticsData);
+
+        } catch (error) {
+            console.error("Error fetching analytics data:", error);
+            setAnalytics({
+                totalProposals: 0,
+                activeProposals: 0,
+                executedProposals: 0,
+                totalFunded: '0',
+                totalInvestors: 0,
+                successRate: '0',
+                averageFunding: '0'
+            });
+        }
+    };
+
     const getProposalDetails = async (ids, contract) => {
         try {
             const details = await Promise.all(ids.map(async (id) => {
-                const proposal = await contract.proposals(id);
+                try {
+                    const [basicDetails, votingDetails] = await Promise.all([
+                        contract.getProposalBasicDetails(id),
+                        contract.getProposalVotingDetails(id)
+                    ]);
 
-                const proposaldata = await proposal
-                console.log('Proposal Data', proposaldata);
-                return {
-                    id,
-                    description: proposal.description,
-                    fundingGoal: ethers.formatUnits(proposal.fundingGoal, 18),
-                    proposer: proposal.proposer,
-                    voteCountFor: proposal.totalVotesFor.toString(),
-                    voteCountAgainst: proposal.totalVotesAgainst.toString(),
-                    deadline: new Date(proposal.endTime.toString() * 1000).toLocaleString(),
-                    executed: proposal.executed
-                };
+                    return {
+                        id: Number(id),
+                        projectName: basicDetails.projectName || `Proposal #${id}`,
+                        description: basicDetails.description || 'No description available',
+                        fundingGoal: ethers.formatEther(basicDetails.fundingGoal),
+                        proposer: basicDetails.proposer,
+                        totalVotesFor: ethers.formatEther(votingDetails.totalVotesFor),
+                        totalVotesAgainst: ethers.formatEther(votingDetails.totalVotesAgainst),
+                        votersFor: Number(votingDetails.votersFor),
+                        votersAgainst: Number(votingDetails.votersAgainst),
+                        totalInvested: ethers.formatEther(votingDetails.totalInvested),
+                        endTime: new Date(Number(basicDetails.endTime) * 1000),
+                        executed: basicDetails.executed,
+                        passed: basicDetails.passed
+                    };
+                } catch (error) {
+                    console.warn(`Failed to fetch proposal ${id}:`, error);
+                    return null;
+                }
             }));
-            setProposalDetails(details);
+
+            const validDetails = details.filter(detail => detail !== null);
+            setProposalDetails(validDetails);
+            
+            // Fetch analytics data
+            await fetchAnalyticsData(contract);
+
             setConsoleLogs(prev => [...prev, {
                 timestamp: new Date().toLocaleString(),
                 function: "getProposalDetails",
                 status: "Success",
-                result: details
+                result: validDetails
             }]);
         } catch (error) {
             console.error("Error fetching proposal details:", error);
@@ -160,16 +251,16 @@ function Analytics() {
                                                     <div className="card-body">
                                                         <div className="row">
                                                             <div className="col-8 mt-2">
-                                                                <span>Total Project</span>
+                                                                <span>Total Projects</span>
                                                             </div>
                                                             <div className="col-4 mt-2 text-end">
                                                                 <h5 className=""><FaEye /></h5>
                                                             </div>
                                                             <div className="col-8 mt-2">
-                                                                <h2>152</h2>
+                                                                <h2>{analytics.totalProposals}</h2>
                                                             </div>
                                                             <div className="col-4 mt-3 text-end">
-                                                                <span>+52.7%</span>
+                                                                <span>{analytics.successRate}%</span>
                                                             </div>
                                                             <div>
 
@@ -184,16 +275,16 @@ function Analytics() {
                                                     <div className="card-body">
                                                         <div className="row">
                                                             <div className="col-8 mt-2">
-                                                                <span>Invested Project</span>
+                                                                <span>Active Projects</span>
                                                             </div>
                                                             <div className="col-4 mt-2 text-end">
                                                                 <h5 className=""><FaEye /></h5>
                                                             </div>
                                                             <div className="col-8 mt-2">
-                                                                <h2>152</h2>
+                                                                <h2>{analytics.activeProposals}</h2>
                                                             </div>
                                                             <div className="col-4 mt-3 text-end">
-                                                                <span>+52.7%</span>
+                                                                <span>{analytics.totalInvestors}+ users</span>
                                                             </div>
                                                             <div>
 
@@ -214,10 +305,10 @@ function Analytics() {
                                                                 <h5 className=""><FaEye /></h5>
                                                             </div>
                                                             <div className="col-8 mt-2">
-                                                                <h2>$1492</h2>
+                                                                <h2>{parseFloat(analytics.totalFunded).toFixed(2)} {currentNetwork?.nativeCurrency?.symbol || 'ETH'}</h2>
                                                             </div>
                                                             <div className="col-4 mt-3 text-end">
-                                                                <span>+12.7%</span>
+                                                                <span>{analytics.executedProposals} executed</span>
                                                             </div>
                                                             <div>
 
@@ -232,16 +323,16 @@ function Analytics() {
                                                     <div className="card-body">
                                                         <div className="row">
                                                             <div className="col-8 mt-2">
-                                                                <span>Total Profit</span>
+                                                                <span>Average Funding</span>
                                                             </div>
                                                             <div className="col-4 mt-2 text-end">
                                                                 <h5 className=""><FaEye /></h5>
                                                             </div>
                                                             <div className="col-8 mt-2">
-                                                                <h2>$6624</h2>
+                                                                <h2>{analytics.averageFunding} {currentNetwork?.nativeCurrency?.symbol || 'ETH'}</h2>
                                                             </div>
                                                             <div className="col-4 mt-3 text-end">
-                                                                <span>+18.7%</span>
+                                                                <span>{analytics.successRate}% success</span>
                                                             </div>
                                                             <div>
 

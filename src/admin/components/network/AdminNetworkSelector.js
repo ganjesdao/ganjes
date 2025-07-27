@@ -7,13 +7,24 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { NETWORKS, getNetworkByChainId, isTestnet } from '../../../utils/networks';
 
-const AdminNetworkSelector = ({ onNetworkChange }) => {
-  const [currentNetwork, setCurrentNetwork] = useState('');
+const AdminNetworkSelector = ({ onNetworkChange, initialNetwork }) => {
+  const [currentNetwork, setCurrentNetwork] = useState(initialNetwork?.chainId || '');
   const [isConnecting, setIsConnecting] = useState(false);
+
+  // Update current network when initialNetwork changes
+  useEffect(() => {
+    if (initialNetwork) {
+      setCurrentNetwork(initialNetwork.chainId);
+      console.log('AdminNetworkSelector: Set initial network', initialNetwork.chainName);
+    }
+  }, [initialNetwork]);
 
   // Check current network on component mount
   useEffect(() => {
-    checkCurrentNetwork();
+    // Only check current network if no initial network was provided
+    if (!initialNetwork) {
+      checkCurrentNetwork();
+    }
     
     // Listen for network changes
     if (window.ethereum) {
@@ -22,7 +33,7 @@ const AdminNetworkSelector = ({ onNetworkChange }) => {
         window.ethereum.removeListener('chainChanged', handleChainChanged);
       };
     }
-  }, []);
+  }, [initialNetwork]);
 
   const handleChainChanged = (chainId) => {
     const network = getNetworkByChainId(chainId);
@@ -34,6 +45,7 @@ const AdminNetworkSelector = ({ onNetworkChange }) => {
 
   const checkCurrentNetwork = async () => {
     if (!window.ethereum) {
+      console.log('AdminNetworkSelector: MetaMask not detected');
       toast.warning('MetaMask not detected. Please install MetaMask to use network features.');
       return;
     }
@@ -41,12 +53,17 @@ const AdminNetworkSelector = ({ onNetworkChange }) => {
     try {
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
       const network = getNetworkByChainId(chainId);
+      console.log('AdminNetworkSelector: Current network detected', {
+        chainId,
+        network,
+        hasCallback: !!onNetworkChange
+      });
       setCurrentNetwork(chainId);
       if (onNetworkChange) {
         onNetworkChange(network);
       }
     } catch (error) {
-      console.error('Error checking network:', error);
+      console.error('AdminNetworkSelector: Error checking network:', error);
       toast.error('Failed to detect current network');
     }
   };

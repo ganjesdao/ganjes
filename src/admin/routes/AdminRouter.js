@@ -8,7 +8,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 
 // Components
-import AdminLayout from '../components/layout/AdminLayout';
 import AdminLogin from '../components/auth/AdminLogin';
 import Dashboard from '../components/dashboard/Dashboard';
 import Proposers from '../components/proposers/Proposers';
@@ -47,45 +46,43 @@ const AdminRouter = () => {
         path="/*"
         element={
           <ProtectedRoute>
-            <AdminLayout>
-              <Routes>
-                {/* Dashboard - Simple admin dashboard */}
-                <Route 
-                  path="/dashboard" 
-                  element={<Dashboard />} 
-                />
-                
-                {/* Proposers Management */}
-                <Route 
-                  path="/proposers" 
-                  element={<Proposers />} 
-                />
-                
-                {/* Investors Management */}
-                <Route 
-                  path="/investors" 
-                  element={<Investors />} 
-                />
-                
-                {/* Executed Proposals */}
-                <Route 
-                  path="/executed" 
-                  element={<Executed />} 
-                />
-                
-                {/* Default redirect to dashboard */}
-                <Route 
-                  path="/" 
-                  element={<Navigate to="/admin/dashboard" replace />} 
-                />
-                
-                {/* 404 redirect to dashboard */}
-                <Route 
-                  path="*" 
-                  element={<Navigate to="/admin/dashboard" replace />} 
-                />
-              </Routes>
-            </AdminLayout>
+            <Routes>
+              {/* Dashboard - Standalone dashboard with integrated layout */}
+              <Route 
+                path="/dashboard" 
+                element={<Dashboard />} 
+              />
+              
+              {/* Proposers Management */}
+              <Route 
+                path="/proposers" 
+                element={<Proposers />} 
+              />
+              
+              {/* Investors Management */}
+              <Route 
+                path="/investors" 
+                element={<Investors />} 
+              />
+              
+              {/* Executed Proposals */}
+              <Route 
+                path="/executed" 
+                element={<Executed />} 
+              />
+              
+              {/* Default redirect to dashboard */}
+              <Route 
+                path="/" 
+                element={<Navigate to="/admin/dashboard" replace />} 
+              />
+              
+              {/* 404 redirect to dashboard */}
+              <Route 
+                path="*" 
+                element={<Navigate to="/admin/dashboard" replace />} 
+              />
+            </Routes>
           </ProtectedRoute>
         }
       />

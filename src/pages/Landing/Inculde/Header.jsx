@@ -3,24 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
 import SimpleNetworkSwitcher from '../../../components/SimpleNetworkSwitcher';
 import { getContractAddress } from '../../../utils/networks';
+import { useWallet } from '../../../context/WalletContext';
 
 function Header({ isToggle, setIsToggle, onNetworkChange }) {
-  const [walletAddress, setWalletAddress] = useState(null);
-  const [currentNetwork, setCurrentNetwork] = useState(null);
-  const [contractAddress, setContractAddress] = useState('');
+  const { account, currentNetwork, contractAddress, isConnected, connectWallet } = useWallet();
   const navigate = useNavigate();
 
   // Handle network change from SimpleNetworkSwitcher
   const handleNetworkChange = (network) => {
-    setCurrentNetwork(network);
-    if (network) {
-      const address = getContractAddress(network.chainId);
-      setContractAddress(address);
-      console.log(`Network changed to: ${network.chainName}`);
-      console.log(`Contract address: ${address}`);
-    } else {
-      setContractAddress('');
-    }
+    console.log(`Network changed to: ${network?.chainName}`);
+    console.log(`Contract address: ${contractAddress}`);
     
     // Propagate the network change to parent component
     if (onNetworkChange) {
@@ -28,68 +20,8 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
     }
   };
 
-  // Check if wallet is already connected on component mount
-  useEffect(() => {
-    const checkWalletConnected = async () => {
-      if (window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({
-            method: 'eth_accounts',
-          });
-          if (accounts.length > 0) {
-            setWalletAddress(accounts[0]);
-          }
-        } catch (err) {
-          console.error("Error checking wallet connection:", err);
-        }
-      }
-    };
-
-    checkWalletConnected();
-
-    // Listen for account changes
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts) => {
-        if (accounts.length > 0) {
-          setWalletAddress(accounts[0]);
-        } else {
-          setWalletAddress(null);
-        }
-      });
-    }
-
-    return () => {
-      window.ethereum?.removeListener('accountsChanged', () => {});
-    };
-  }, []);
-
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert("MetaMask not found. Please install it.");
-      return;
-    }
-
-    try {
-      // Request account connection
-      const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts',
-      });
-
-      setWalletAddress(accounts[0]);
-      console.log('Wallet connected:', accounts[0]);
-      
-      // Check current network after connecting
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-      console.log('Current network chain ID:', chainId);
-      
-    } catch (err) {
-      console.error("Wallet connection failed:", err);
-      alert("Wallet connection failed. Please try again.");
-    }
-  };
-
   const navigateToDashboard = () => {
-    if (walletAddress) {
+    if (isConnected) {
       navigate('/dashboard');
     } else {
       connectWallet();
@@ -147,10 +79,10 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
                     transition: 'all 0.3s ease'
                   }}
                 >
-                  {walletAddress ? (
+                  {isConnected ? (
                     <>
                       <span className="d-none d-md-inline">
-                        Enter DAO ({walletAddress.substring(0, 6)}...{walletAddress.slice(-4)})
+                        Enter DAO ({account.substring(0, 6)}...{account.slice(-4)})
                       </span>
                       <span className="d-md-none">
                         Enter DAO

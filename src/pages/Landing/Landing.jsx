@@ -8,19 +8,19 @@ import { ToastContainer, toast } from 'react-toastify';
 
 function Landing() {
   const [walletAddress, setWalletAddress] = useState(null);
-   const [daoContract, setDaoContract] = useState(null);
-   const [proposalDetails, setProposalDetails] = useState([]);
-   const [isLoading, setIsLoading] = useState(false);
+  const [daoContract, setDaoContract] = useState(null);
+  const [proposalDetails, setProposalDetails] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const [contractAddress, setContractAddress] = useState("");
   const [currentNetwork, setCurrentNetwork] = useState(null);
   const [stats, setStats] = useState({
-      totalProposals: 0,
-      approvedProposals: 0,
-      runningProposals: 0,
-      totalFunded: '0',
-      activeInvestors: 0,
-    });
+    totalProposals: 0,
+    approvedProposals: 0,
+    runningProposals: 0,
+    totalFunded: '0',
+    activeInvestors: 0,
+  });
 
   // Check if wallet is already connected on component mount
   useEffect(() => {
@@ -50,7 +50,7 @@ function Landing() {
 
     // Cleanup listener on unmount
     return () => {
-      window.ethereum?.removeListener('accountsChanged', () => {});
+      window.ethereum?.removeListener('accountsChanged', () => { });
     };
   }, []);
 
@@ -80,109 +80,111 @@ function Landing() {
   };
 
   const handleNetworkChange = (network) => {
-      setCurrentNetwork(network);
-      if (network) {
-        const address = getContractAddress(network.chainId);
-        setContractAddress(address);
-        console.log(`Network changed to: ${network.chainName}`);
-        console.log(`Contract address: ${address}`);
-  
-        // Initialize contract with new network
-        initializeContract(address);
+    setCurrentNetwork(network);
+    if (network) {
+      const address = getContractAddress(network.chainId);
+      setContractAddress(address);
+      console.log(`Network changed to: ${network.chainName}`);
+      console.log(`Contract address: ${address}`);
+
+      // Initialize contract with new network
+      initializeContract(address);
+    } else {
+      setContractAddress("");
+      setDaoContract(null);
+      setProposalDetails([]);
+    }
+  };
+
+
+  // Initialize contract
+  const initializeContract = async (contractAddr) => {
+    if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
+      toast.warning("⚠️ Contract not deployed on this network yet!");
+      setDaoContract(null);
+      setProposalDetails([]);
+      setIsLoading(false);
+      return;
+    }
+
+    if (typeof window.ethereum === 'undefined') {
+      toast.error("Please install MetaMask!");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = new ethers.Contract(contractAddr, daoABI, provider); // Use provider for read-only
+      setDaoContract(contract);
+
+
+      toast.success(`✅ Connected to contract on ${currentNetwork?.chainName}`);
+    } catch (error) {
+      console.error("Init error:", error.message);
+      if (error.message.includes("could not detect network")) {
+        toast.error("❌ Failed to connect to the network. Please check your wallet connection.");
+      } else if (error.message.includes("user rejected")) {
+        toast.error("❌ Connection rejected by user.");
       } else {
-        setContractAddress("");
-        setDaoContract(null);
-        setProposalDetails([]);
+        toast.error(`❌ Failed to initialize contract: ${error.message}`);
       }
-    };
+      setDaoContract(null);
+      setProposalDetails([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
 
-   // Initialize contract
-    const initializeContract = async (contractAddr) => {
-      if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-        toast.warning("⚠️ Contract not deployed on this network yet!");
-        setDaoContract(null);
-        setProposalDetails([]);
-        setIsLoading(false);
-        return;
-      }
-  
-      if (typeof window.ethereum === 'undefined') {
-        toast.error("Please install MetaMask!");
-        setIsLoading(false);
-        return;
-      }
-  
-      try {
-        setIsLoading(true);
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const contract = new ethers.Contract(contractAddr, daoABI, provider); // Use provider for read-only
-        setDaoContract(contract);
-  
-  
-        toast.success(`✅ Connected to contract on ${currentNetwork?.chainName}`);
-      } catch (error) {
-        console.error("Init error:", error.message);
-        if (error.message.includes("could not detect network")) {
-          toast.error("❌ Failed to connect to the network. Please check your wallet connection.");
-        } else if (error.message.includes("user rejected")) {
-          toast.error("❌ Connection rejected by user.");
-        } else {
-          toast.error(`❌ Failed to initialize contract: ${error.message}`);
+
+
+  useEffect(() => {
+    console.log('Current Network Data:', daoContract, currentNetwork);
+    if (daoContract && currentNetwork) {
+      console.log('Fetching proposals...', daoContract);
+      const fetchProposalsOnNetworkChange = async () => {
+        try {
+          const totalProposals = await daoContract.getTotalProposals();
+          const [approvedCount] = await daoContract.getApprovedProposals();
+          const [runningCount] = await daoContract.getRunningProposals();
+          const totalFunded = ethers.formatEther(await daoContract.getTotalFundedAmount());
+          const activeInvestors = await daoContract.getActiveInvestorCount();
+
+
+          setStats({
+            totalProposals: totalProposals.toString(),
+            approvedProposals: approvedCount.toString(),
+            runningProposals: runningCount.toString(),
+            totalFunded,
+            activeInvestors: activeInvestors.toString(),
+          });
+
+          console.log('Stats:', {
+            totalProposals: totalProposals.toString(),
+            approvedProposals: approvedCount.toString(),
+            runningProposals: runningCount.toString(),
+            totalFunded,
+            activeInvestors: activeInvestors.toString(),
+          });
+        } catch (err) {
+          console.error('Error fetching analytics stats:', err);
+          toast.error('Failed to fetch analytics stats.');
         }
-        setDaoContract(null);
-        setProposalDetails([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    
-
-
-    useEffect(() => {
-      if (daoContract && currentNetwork) {
-        const fetchProposalsOnNetworkChange = async () => {
-           try {
-                  const totalProposals = await daoContract.getTotalProposals();
-                  const [approvedCount] = await daoContract.getApprovedProposals();
-                  const [runningCount] = await daoContract.getRunningProposals();
-                  const totalFunded = ethers.formatEther(await daoContract.getTotalFundedAmount());
-                  const activeInvestors = await daoContract.getActiveInvestorCount();
-                  
-
-                  setStats({
-                totalProposals: totalProposals.toString(),
-                approvedProposals: approvedCount.toString(),
-                runningProposals: runningCount.toString(),
-                totalFunded,
-                activeInvestors: activeInvestors.toString(),
-              });
-                 
-                  console.log('Stats:', {
-                    totalProposals: totalProposals.toString(),
-                    approvedProposals: approvedCount.toString(),
-                    runningProposals: runningCount.toString(),
-                    totalFunded,
-                    activeInvestors: activeInvestors.toString(),
-                  });
-                } catch (err) {
-                  console.error('Error fetching analytics stats:', err);
-                  toast.error('Failed to fetch analytics stats.');
-                }
-        };
-        fetchProposalsOnNetworkChange();
-      }
-    }, [daoContract, currentNetwork]);
+      };
+      fetchProposalsOnNetworkChange();
+    }
+  }, [daoContract, currentNetwork]);
 
 
   return (
     <>
       {/* Navigation */}
-    <Header onNetworkChange={handleNetworkChange}/>
+      <Header onNetworkChange={handleNetworkChange} />
 
       {/* Enhanced Hero Section with Gradient Background */}
-      <section className="position-relative text-white py-5 overflow-hidden" style={{ 
+      <section className="position-relative text-white py-5 overflow-hidden" style={{
         marginTop: '76px',
         background: 'linear-gradient(135deg,rgb(0, 90, 39) 0%,rgb(2, 49, 6) 50%,rgb(5, 5, 5) 100%)',
         minHeight: '100vh'
@@ -192,7 +194,7 @@ function Landing() {
           background: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Ccircle cx="30" cy="30" r="4"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
           animation: 'float 20s ease-in-out infinite'
         }}></div>
-        
+
         {/* Floating Elements */}
         <div className="position-absolute" style={{
           top: '20%',
@@ -203,7 +205,7 @@ function Landing() {
             <i className="fas fa-rocket fa-2x text-warning"></i>
           </div>
         </div>
-        
+
         <div className="position-absolute" style={{
           top: '60%',
           right: '15%',
@@ -254,12 +256,12 @@ function Landing() {
                   </span>
                 </h1>
 
-                <p className="lead mb-5 opacity-90" style={{ 
+                <p className="lead mb-5 opacity-90" style={{
                   fontSize: '1.4rem',
                   lineHeight: '1.6',
                   textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
                 }}>
-                  🌟 The revolutionary decentralized platform where <strong>innovative projects</strong> meet <strong>visionary investors</strong>. 
+                  🌟 The revolutionary decentralized platform where <strong>innovative projects</strong> meet <strong>visionary investors</strong>.
                   Democratize funding, empower creators, and build the future together through transparent blockchain governance.
                 </p>
 
@@ -296,7 +298,7 @@ function Landing() {
 
                 {/* CTA Buttons */}
                 <div className="d-flex flex-column flex-sm-row gap-3 mb-4">
-                  <button 
+                  <button
                     onClick={navigateToDashboard}
                     className="btn btn-lg px-5 py-3 position-relative overflow-hidden"
                     style={{
@@ -310,7 +312,7 @@ function Landing() {
                       transition: 'all 0.3s ease',
                       boxShadow: '0 8px 25px rgba(255,107,107,0.3)'
                     }}
-                    onMouseEnter={(e) => {  
+                    onMouseEnter={(e) => {
                       e.target.style.transform = 'translateY(-3px)';
                       e.target.style.boxShadow = '0 12px 35px rgba(255,107,107,0.4)';
                     }}
@@ -322,7 +324,7 @@ function Landing() {
                     <i className="fas fa-rocket me-2"></i>
                     🚀 Launch DAO Now
                   </button>
-                  
+
                   <a href="/join" className="btn btn-lg px-5 py-3" style={{
                     background: 'rgba(255,255,255,0.1)',
                     backdropFilter: 'blur(10px)',
@@ -332,22 +334,22 @@ function Landing() {
                     fontWeight: 'bold',
                     transition: 'all 0.3s ease'
                   }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = 'rgba(255,255,255,0.2)';
-                    e.target.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = 'rgba(255,255,255,0.1)';
-                    e.target.style.transform = 'translateY(0)';
-                  }}>
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.2)';
+                      e.target.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.1)';
+                      e.target.style.transform = 'translateY(0)';
+                    }}>
                     <i className="fas fa-handshake me-2"></i>
                     Join Ganjes
                   </a>
                 </div>
-                
+
               </div>
             </div>
-            
+
             {/* Enhanced Visual Section */}
             <div className="col-lg-6">
               <div className="text-center position-relative">
@@ -480,14 +482,14 @@ function Landing() {
                 color: 'white',
                 transition: 'all 0.3s ease'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-10px) scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(102, 126, 234, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-10px) scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(102, 126, 234, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                }}>
                 <div className="position-absolute top-0 start-0 w-100 h-100" style={{
                   background: 'url("data:image/svg+xml,%3Csvg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Cpath d="M20 20c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8 8 3.6 8 8zm0 0c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8-8 3.6-8 8z"/%3E%3C/g%3E%3C/svg%3E")'
                 }}></div>
@@ -510,14 +512,14 @@ function Landing() {
                 color: 'white',
                 transition: 'all 0.3s ease'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-10px) scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(79, 172, 254, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-10px) scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(79, 172, 254, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                }}>
                 <div className="position-absolute top-0 start-0 w-100 h-100" style={{
                   background: 'url("data:image/svg+xml,%3Csvg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Cpath d="M20 20c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8 8 3.6 8 8zm0 0c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8-8 3.6-8 8z"/%3E%3C/g%3E%3C/svg%3E")'
                 }}></div>
@@ -541,14 +543,14 @@ function Landing() {
                 color: 'white',
                 transition: 'all 0.3s ease'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-10px) scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(17, 153, 142, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-10px) scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(17, 153, 142, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                }}>
                 <div className="position-absolute top-0 start-0 w-100 h-100" style={{
                   background: 'url("data:image/svg+xml,%3Csvg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Cpath d="M20 20c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8 8 3.6 8 8zm0 0c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8-8 3.6-8 8z"/%3E%3C/g%3E%3C/svg%3E")'
                 }}></div>
@@ -571,14 +573,14 @@ function Landing() {
                 color: 'white',
                 transition: 'all 0.3s ease'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-10px) scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(240, 147, 251, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-10px) scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(240, 147, 251, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                }}>
                 <div className="position-absolute top-0 start-0 w-100 h-100" style={{
                   background: 'url("data:image/svg+xml,%3Csvg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%23ffffff" fill-opacity="0.05"%3E%3Cpath d="M20 20c0 4.4-3.6 8-8 8s-8-3.6-8-8 3.6-8 8-8 8 3.6 8 8zm0 0c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8-8 3.6-8 8z"/%3E%3C/g%3E%3C/svg%3E")'
                 }}></div>
@@ -595,7 +597,7 @@ function Landing() {
               </div>
             </div>
 
-            
+
           </div>
 
           {/* Call to Action */}
@@ -603,7 +605,7 @@ function Landing() {
             <p className="lead text-muted mb-4">
               Join thousands of innovators and investors shaping the future together
             </p>
-            <button 
+            <button
               onClick={navigateToDashboard}
               className="btn btn-lg px-5 py-3"
               style={{
@@ -641,7 +643,7 @@ function Landing() {
                   Bridging the Gap Between <span className="text-primary">Innovation</span> and <span className="text-success">Investment</span>
                 </h2>
                 <p className="lead mb-4">
-                  Ganjes DAO is more than just a funding platform—it's a complete ecosystem where groundbreaking projects 
+                  Ganjes DAO is more than just a funding platform—it's a complete ecosystem where groundbreaking projects
                   connect with forward-thinking investors through transparent, decentralized governance.
                 </p>
                 <div className="row g-4">
@@ -715,7 +717,7 @@ function Landing() {
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
           opacity: 0.03
         }}></div>
-        
+
         <div className="container position-relative">
           {/* Section Header */}
           <div className="text-center mb-5">
@@ -740,7 +742,7 @@ function Landing() {
             </h2>
             <p className="lead text-muted">Whether you're an innovator or investor, Ganjes DAO provides cutting-edge tools for success</p>
           </div>
-          
+
           <div className="row g-4">
             {/* Smart Proposals */}
             <div className="col-md-6 col-lg-4">
@@ -748,14 +750,14 @@ function Landing() {
                 transition: 'all 0.3s ease',
                 borderRadius: '20px'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(102, 126, 234, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(102, 126, 234, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                }}>
                 <div className="position-absolute top-0 start-0 w-100 h-1" style={{
                   background: 'linear-gradient(90deg, #667eea, #764ba2)'
                 }}></div>
@@ -781,21 +783,21 @@ function Landing() {
                 </div>
               </div>
             </div>
-            
+
             {/* Investment Tracking */}
             <div className="col-md-6 col-lg-4">
               <div className="card h-100 border-0 shadow position-relative overflow-hidden" style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '20px'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(17, 153, 142, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(17, 153, 142, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                }}>
                 <div className="position-absolute top-0 start-0 w-100 h-1" style={{
                   background: 'linear-gradient(90deg, #11998e, #38ef7d)'
                 }}></div>
@@ -821,21 +823,21 @@ function Landing() {
                 </div>
               </div>
             </div>
-            
+
             {/* Community Governance */}
             <div className="col-md-6 col-lg-4">
               <div className="card h-100 border-0 shadow position-relative overflow-hidden" style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '20px'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(255, 193, 7, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(255, 193, 7, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                }}>
                 <div className="position-absolute top-0 start-0 w-100 h-1" style={{
                   background: 'linear-gradient(90deg, #feca57, #ff9ff3)'
                 }}></div>
@@ -861,21 +863,21 @@ function Landing() {
                 </div>
               </div>
             </div>
-            
+
             {/* Secure Multisig */}
             <div className="col-md-6 col-lg-4">
               <div className="card h-100 border-0 shadow position-relative overflow-hidden" style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '20px'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(79, 172, 254, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(79, 172, 254, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                }}>
                 <div className="position-absolute top-0 start-0 w-100 h-1" style={{
                   background: 'linear-gradient(90deg, #4facfe, #00f2fe)'
                 }}></div>
@@ -901,21 +903,21 @@ function Landing() {
                 </div>
               </div>
             </div>
-            
+
             {/* Token Economics */}
             <div className="col-md-6 col-lg-4">
               <div className="card h-100 border-0 shadow position-relative overflow-hidden" style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '20px'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(240, 147, 251, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(240, 147, 251, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                }}>
                 <div className="position-absolute top-0 start-0 w-100 h-1" style={{
                   background: 'linear-gradient(90deg, #f093fb, #f5576c)'
                 }}></div>
@@ -941,21 +943,21 @@ function Landing() {
                 </div>
               </div>
             </div>
-            
+
             {/* Project Discovery */}
             <div className="col-md-6 col-lg-4">
               <div className="card h-100 border-0 shadow position-relative overflow-hidden" style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '20px'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(108, 117, 125, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-              }}>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(108, 117, 125, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                }}>
                 <div className="position-absolute top-0 start-0 w-100 h-1" style={{
                   background: 'linear-gradient(90deg, #6c757d, #495057)'
                 }}></div>
@@ -988,7 +990,7 @@ function Landing() {
             <p className="lead text-muted mb-4">
               Ready to experience the future of decentralized funding?
             </p>
-            <button 
+            <button
               onClick={navigateToDashboard}
               className="btn btn-lg px-5 py-3"
               style={{
@@ -1023,7 +1025,7 @@ function Landing() {
             <h2 className="display-5 fw-bold">How Ganjes DAO Works</h2>
             <p className="lead text-muted">Simple steps to connect projects with investors</p>
           </div>
-          
+
           <div className="row">
             <div className="col-lg-6 mb-5">
               <h3 className="h4 mb-4 text-primary">
@@ -1065,7 +1067,7 @@ function Landing() {
                 </div>
               </div>
             </div>
-            
+
             <div className="col-lg-6 mb-5">
               <h3 className="h4 mb-4 text-success">
                 <i className="fas fa-search-dollar me-2"></i>For Investors
@@ -1117,11 +1119,11 @@ function Landing() {
             <div className="col-lg-8">
               <h2 className="display-5 fw-bold mb-4">Ready to Join the Future of Funding?</h2>
               <p className="lead mb-5">
-                Whether you're an innovative project creator or a visionary investor, 
+                Whether you're an innovative project creator or a visionary investor,
                 Ganjes DAO provides the platform to make your mark on the future.
               </p>
               <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-                <button 
+                <button
                   onClick={navigateToDashboard}
                   className="btn btn-light btn-lg px-5"
                 >
@@ -1145,7 +1147,7 @@ function Landing() {
             <h2 className="display-5 fw-bold">Get In Touch</h2>
             <p className="lead text-muted">Have questions? We're here to help you get started</p>
           </div>
-          
+
           <div className="row justify-content-center">
             <div className="col-lg-8">
               <div className="row g-4">

@@ -156,21 +156,37 @@ export const useDAOData = (currentNetwork, enabled = true) => {
    * Fetch all data
    */
   const fetchAllData = useCallback(async () => {
-    if (!enabled || isLoading) return;
+    if (!enabled || isLoading || !currentNetwork) {
+      console.log('useDAOData: Skipping fetchAllData', {
+        enabled,
+        isLoading,
+        hasNetwork: !!currentNetwork
+      });
+      return;
+    }
 
+    console.log('useDAOData: Starting fetchAllData for', currentNetwork.chainName);
     setIsLoading(true);
     setError(null);
 
     try {
       // Check if service is initialized
       const networkInfo = daoService.getNetworkInfo();
+      console.log('useDAOData: Service network info', networkInfo);
+      
       if (!networkInfo.isInitialized) {
+        console.log('useDAOData: Service not initialized, initializing...');
         const initialized = await initializeService();
-        if (!initialized) return;
+        if (!initialized) {
+          console.log('useDAOData: Service initialization failed');
+          return;
+        }
+        console.log('useDAOData: Service initialized successfully');
       }
 
+      console.log('useDAOData: Fetching all data...');
       // Fetch all data in parallel
-      await Promise.allSettled([
+      const results = await Promise.allSettled([
         fetchDashboardMetrics(),
         fetchProposals(),
         fetchProposers(),
@@ -178,11 +194,19 @@ export const useDAOData = (currentNetwork, enabled = true) => {
         fetchExecutedProposals()
       ]);
 
+      console.log('useDAOData: Data fetch results', {
+        metrics: results[0].status,
+        proposals: results[1].status,
+        proposers: results[2].status,
+        investors: results[3].status,
+        executed: results[4].status
+      });
+
       if (isMountedRef.current) {
         setLastUpdated(new Date());
       }
     } catch (error) {
-      console.error('Error fetching DAO data:', error);
+      console.error('useDAOData: Error fetching DAO data:', error);
       if (isMountedRef.current) {
         setError('Failed to fetch DAO data');
       }
@@ -194,6 +218,7 @@ export const useDAOData = (currentNetwork, enabled = true) => {
   }, [
     enabled,
     isLoading,
+    currentNetwork,
     initializeService,
     fetchDashboardMetrics,
     fetchProposals,
@@ -229,7 +254,18 @@ export const useDAOData = (currentNetwork, enabled = true) => {
    * Initialize when network changes
    */
   useEffect(() => {
+    console.log('useDAOData: Network change effect triggered', {
+      currentNetwork: currentNetwork?.chainName,
+      enabled,
+      hasNetwork: !!currentNetwork
+    });
+    
     if (currentNetwork && enabled) {
+      console.log('useDAOData: Initializing for network', {
+        chainName: currentNetwork.chainName,
+        chainId: currentNetwork.chainId
+      });
+      
       // Reset state
       setDashboardMetrics(null);
       setProposals([]);
@@ -243,6 +279,11 @@ export const useDAOData = (currentNetwork, enabled = true) => {
       
       // Initialize and fetch data
       fetchAllData();
+    } else {
+      console.log('useDAOData: Not initializing', {
+        hasNetwork: !!currentNetwork,
+        enabled
+      });
     }
   }, [currentNetwork, enabled, fetchAllData]);
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
+import { useWallet } from '../../../context/WalletContext';
 
 // Smart contract ABI (replace with your full ABI from Remix/Hardhat)
 const GanjesDAOABI = [{"inputs":[{"internalType":"address","name":"_governanceToken","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"depositor","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"FundsDeposited","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"FundsWithdrawn","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"MinInvestmentAmountSet","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"proposalId","type":"uint256"},{"indexed":false,"internalType":"address","name":"proposer","type":"address"},{"indexed":false,"internalType":"string","name":"description","type":"string"},{"indexed":false,"internalType":"uint256","name":"fundingGoal","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"ProposalCreated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"proposalId","type":"uint256"},{"indexed":false,"internalType":"bool","name":"passed","type":"bool"},{"indexed":false,"internalType":"uint256","name":"amountAllocated","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"ProposalExecuted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"proposalId","type":"uint256"},{"indexed":false,"internalType":"address","name":"voter","type":"address"},{"indexed":false,"internalType":"bool","name":"support","type":"bool"},{"indexed":false,"internalType":"uint256","name":"weight","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"investmentAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"Voted","type":"event"},{"inputs":[],"name":"MIN_QUORUM_PERCENT","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"MIN_TOKENS_FOR_PROPOSAL","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"VOTING_DURATION","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"admin","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"allProposalIds","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"string","name":"_description","type":"string"},{"internalType":"uint256","name":"_fundingGoal","type":"uint256"}],"name":"createProposal","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"depositFunds","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_proposalId","type":"uint256"}],"name":"executeProposal","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"fundingHistory","outputs":[{"internalType":"uint256","name":"proposalId","type":"uint256"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"fundingRecordCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getAllProposalIds","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getDAOBalance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_recordId","type":"uint256"}],"name":"getFundingRecord","outputs":[{"internalType":"uint256","name":"","type":"uint256"},{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"},{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_proposalId","type":"uint256"}],"name":"getProposalDetails","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"proposer","type":"address"},{"internalType":"string","name":"description","type":"string"},{"internalType":"uint256","name":"fundingGoal","type":"uint256"},{"internalType":"uint256","name":"totalVotesFor","type":"uint256"},{"internalType":"uint256","name":"totalVotesAgainst","type":"uint256"},{"internalType":"uint256","name":"votersFor","type":"uint256"},{"internalType":"uint256","name":"votersAgainst","type":"uint256"},{"internalType":"uint256","name":"totalInvested","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"bool","name":"executed","type":"bool"},{"internalType":"bool","name":"passed","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_proposalId","type":"uint256"}],"name":"getVoterCounts","outputs":[{"internalType":"uint256","name":"votersFor","type":"uint256"},{"internalType":"uint256","name":"votersAgainst","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"governanceToken","outputs":[{"internalType":"contract IERC20","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"minInvestmentAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"proposalCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"proposals","outputs":[{"internalType":"uint256","name":"id","type":"uint256"},{"internalType":"address","name":"proposer","type":"address"},{"internalType":"string","name":"description","type":"string"},{"internalType":"uint256","name":"fundingGoal","type":"uint256"},{"internalType":"uint256","name":"totalVotesFor","type":"uint256"},{"internalType":"uint256","name":"totalVotesAgainst","type":"uint256"},{"internalType":"uint256","name":"votersFor","type":"uint256"},{"internalType":"uint256","name":"votersAgainst","type":"uint256"},{"internalType":"uint256","name":"totalInvested","type":"uint256"},{"internalType":"uint256","name":"endTime","type":"uint256"},{"internalType":"bool","name":"executed","type":"bool"},{"internalType":"bool","name":"passed","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_minInvestmentAmount","type":"uint256"}],"name":"setMinInvestmentAmount","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_proposalId","type":"uint256"},{"internalType":"bool","name":"_support","type":"bool"},{"internalType":"uint256","name":"_investmentAmount","type":"uint256"}],"name":"vote","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_amount","type":"uint256"},{"internalType":"address","name":"_to","type":"address"}],"name":"withdrawExcessFunds","outputs":[],"stateMutability":"nonpayable","type":"function"}];
@@ -15,11 +16,9 @@ const DAO_CONTRACT_ADDRESS = "0x42DfcbF08cdf0d7A522E7A1c19ec3cC30a180117"; // Up
 const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS; // Update this
 
 const GanjesDAO = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
+  const { provider, signer, account, contractAddress, isConnected, connectWallet } = useWallet();
   const [daoContract, setDaoContract] = useState(null);
   const [tokenContract, setTokenContract] = useState(null);
-  const [account, setAccount] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [daoBalance, setDaoBalance] = useState('0');
   const [minInvestment, setMinInvestment] = useState('0');
@@ -40,38 +39,37 @@ const GanjesDAO = () => {
   const [recordId, setRecordId] = useState('');
   const [specificProposalId, setSpecificProposalId] = useState(''); // NEW: For fetching specific proposal
 
-  // Connect to MetaMask
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert('Please install MetaMask!');
-      return;
-    }
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const account = await signer.getAddress();
-      const daoContract = new ethers.Contract(DAO_CONTRACT_ADDRESS, GanjesDAOABI, signer);
-      const tokenContract = new ethers.Contract(TOKEN_CONTRACT_ADDRESS, TokenABI, signer);
+  // Initialize contracts when wallet is connected
+  useEffect(() => {
+    const initializeContracts = async () => {
+      if (!signer || !provider) return;
+      
+      try {
+        const daoContract = new ethers.Contract(
+          contractAddress || DAO_CONTRACT_ADDRESS, 
+          GanjesDAOABI, 
+          signer
+        );
+        const tokenContract = new ethers.Contract(TOKEN_CONTRACT_ADDRESS, TokenABI, signer);
 
-      setProvider(provider);
-      setSigner(signer);
-      setDaoContract(daoContract);
-      setTokenContract(tokenContract);
-      setAccount(account);
+        setDaoContract(daoContract);
+        setTokenContract(tokenContract);
 
-      // Check if user is admin
-      const admin = await daoContract.admin();
-      setIsAdmin(account.toLowerCase() === admin.toLowerCase());
+        // Check if user is admin
+        const admin = await daoContract.admin();
+        setIsAdmin(account.toLowerCase() === admin.toLowerCase());
 
-      // Fetch initial data
-      fetchDAOData();
-    } catch (error) {
-      console.error('Error connecting wallet:', error);
-      alert('Failed to connect wallet.');
-    }
-  };
+        // Fetch initial data
+        fetchDAOData();
+      } catch (error) {
+        console.error('Error initializing contracts:', error);
+      }
+    };
 
-  // Fetch DAO data (balance, min investment, proposals, funding records)
+    initializeContracts();
+  }, [signer, provider, account, contractAddress]);
+
+  // Define fetchDAOData outside useEffect to avoid dependency issues
   const fetchDAOData = async () => {
     if (!daoContract) return;
     try {
@@ -285,7 +283,7 @@ const GanjesDAO = () => {
   return (
     <div style={styles.container}>
       <h1 style={styles.header}>GanjesDAO Interface</h1>
-      {!account ? (
+      {!isConnected ? (
         <button style={styles.button} onClick={connectWallet}>
           Connect Wallet
         </button>

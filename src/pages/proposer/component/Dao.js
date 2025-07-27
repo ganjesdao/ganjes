@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { daoABI } from '../../../Auth/Abi';
+import { useWallet } from '../../../context/WalletContext';
 
 // Smart contract ABI (replace with your full ABI from Remix/Hardhat)
 const GanjesDAOABI = daoABI;
@@ -15,11 +16,9 @@ const DAO_CONTRACT_ADDRESS = "0x5Bc589fFA5ECb847D52d13B36fF1db734C20741a"; // Up
 const TOKEN_CONTRACT_ADDRESS = process.env.REACT_APP_TOKEN_ADDRESS; // Update this
 
 const GanjesDAO = () => {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
+  const { provider, signer, account, contractAddress, isConnected, connectWallet } = useWallet();
   const [daoContract, setDaoContract] = useState(null);
   const [tokenContract, setTokenContract] = useState(null);
-  const [account, setAccount] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const [daoBalance, setDaoBalance] = useState('0');
   const [minInvestment, setMinInvestment] = useState('0');
@@ -40,36 +39,35 @@ const GanjesDAO = () => {
   const [recordId, setRecordId] = useState('');
   const [specificProposalId, setSpecificProposalId] = useState(''); // NEW: For fetching specific proposal
 
-  // Connect to MetaMask
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      alert('Please install MetaMask!');
-      return;
-    }
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const account = await signer.getAddress();
-      const daoContract = new ethers.Contract(DAO_CONTRACT_ADDRESS, GanjesDAOABI, signer);
-      const tokenContract = new ethers.Contract(TOKEN_CONTRACT_ADDRESS, TokenABI, signer);
+  // Initialize contracts when wallet is connected
+  useEffect(() => {
+    const initializeContracts = async () => {
+      if (!signer || !provider) return;
+      
+      try {
+        const daoContract = new ethers.Contract(
+          contractAddress || DAO_CONTRACT_ADDRESS, 
+          GanjesDAOABI, 
+          signer
+        );
+        const tokenContract = new ethers.Contract(TOKEN_CONTRACT_ADDRESS, TokenABI, signer);
 
-      setProvider(provider);
-      setSigner(signer);
-      setDaoContract(daoContract);
-      setTokenContract(tokenContract);
-      setAccount(account);
+        setDaoContract(daoContract);
+        setTokenContract(tokenContract);
 
-      // Check if user is admin
-      const admin = await daoContract.admin();
-      setIsAdmin(account.toLowerCase() === admin.toLowerCase());
+        // Check if user is admin
+        const admin = await daoContract.admin();
+        setIsAdmin(account.toLowerCase() === admin.toLowerCase());
 
-      // Fetch initial data
-      fetchDAOData();
-    } catch (error) {
-      console.error('Error connecting wallet:', error);
-      alert('Failed to connect wallet.');
-    }
-  };
+        // Fetch initial data
+        fetchDAOData();
+      } catch (error) {
+        console.error('Error initializing contracts:', error);
+      }
+    };
+
+    initializeContracts();
+  }, [signer, provider, account, contractAddress]);
 
   // Fetch DAO data (balance, min investment, proposals, funding records)
   const fetchDAOData = async () => {
@@ -285,7 +283,7 @@ const GanjesDAO = () => {
   return (
     <div style={styles.container}>
       <h1 style={styles.header}>GanjesDAO Interface</h1>
-      {!account ? (
+      {!isConnected ? (
         <button style={styles.button} onClick={connectWallet}>
           Connect Wallet
         </button>

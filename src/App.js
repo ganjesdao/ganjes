@@ -4,6 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useEffect } from 'react';
 import { initializeSecurity } from './utils/securityHeaders';
+import { WalletProvider } from './context/WalletContext';
 import Landing from './pages/Landing/Landing';
 import Marketplace from './pages/Landing/Marketplace';
 import Signin from './pages/proposer/Signin';
@@ -36,7 +37,8 @@ function App() {
 
   return (
    <>
-   <Router>
+   <WalletProvider>
+     <Router>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/landing" element={<Landing />} />
@@ -83,6 +85,7 @@ function App() {
       pauseOnHover
       theme="colored"
     />
+   </WalletProvider>
    </>
   );
 }
