@@ -165,7 +165,7 @@ function MarketPlace() {
     });
 
     return () => {
-      window.ethereum?.removeListener('accountsChanged', () => {});
+      window.ethereum?.removeListener('accountsChanged', () => { });
     };
   }, []);
 
@@ -256,7 +256,7 @@ function MarketPlace() {
   // Initialize contract
   const initializeContract = async (contractAddr) => {
     if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-      toast.warning("⚠️ Contract not deployed on this network yet!");
+
       setDaoContract(null);
       setProposalDetails([]);
       setIsLoading(false);
@@ -279,15 +279,12 @@ function MarketPlace() {
       const ids = await contract.getAllProposalIds();
       await fetchProposalDetails(ids, contract);
 
-      toast.success(`✅ Connected to contract on ${currentNetwork?.chainName}`);
     } catch (error) {
       console.error("Init error:", error.message);
       if (error.message.includes("could not detect network")) {
         toast.error("❌ Failed to connect to the network. Please check your wallet connection.");
       } else if (error.message.includes("user rejected")) {
         toast.error("❌ Connection rejected by user.");
-      } else {
-        toast.error(`❌ Failed to initialize contract: ${error.message}`);
       }
       setDaoContract(null);
       setProposalDetails([]);
@@ -318,7 +315,7 @@ function MarketPlace() {
       setProposalDetails(proposalData);
     } catch (error) {
       console.error("Error fetching proposals:", error);
-      toast.error("Failed to fetch proposals!");
+
       setProposalDetails([]);
     } finally {
       setIsLoading(false);
@@ -334,8 +331,7 @@ function MarketPlace() {
           const ids = await daoContract.getAllProposalIds();
           await fetchProposalDetails(ids, daoContract);
         } catch (error) {
-          console.error("Error fetching proposals on network change:", error);
-          toast.error("Failed to refresh proposals!");
+
           setProposalDetails([]);
         } finally {
           setIsLoading(false);
@@ -346,9 +342,9 @@ function MarketPlace() {
   }, [daoContract, currentNetwork]);
 
 
-  const proposalData = (pId)=>{
-    console.log(pId,"id")
-    localStorage.setItem("proposalId",pId)
+  const proposalData = (pId) => {
+    console.log(pId, "id")
+    localStorage.setItem("proposalId", pId)
     navigate(`/proposal`)
   }
   return (
@@ -468,105 +464,157 @@ function MarketPlace() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-5">
-        <div className="container">
-          <div className="row text-center">
-            <div className="col-md-3 mb-4">
-              <div className="bg-white p-4 rounded shadow-sm h-100">
-                <i className="fas fa-project-diagram fa-3x text-primary mb-3"></i>
-                <h3 className="h4 fw-bold text-primary">{proposalDetails.length}</h3>
-                <p className="text-muted mb-0">Projects Funded</p>
-              </div>
-            </div>
-            <div className="col-md-3 mb-4">
-              <div className="bg-white p-4 rounded shadow-sm h-100">
-                <i className="fas fa-users fa-3x text-success mb-3"></i>
-                <h3 className="h4 fw-bold text-success">10K+</h3>
-                <p className="text-muted mb-0">Active Investors</p>
-              </div>
-            </div>
-            <div className="col-md-3 mb-4">
-              <div className="bg-white p-4 rounded shadow-sm h-100">
-                <i className="fas fa-dollar-sign fa-3x text-warning mb-3"></i>
-                <h3 className="h4 fw-bold text-warning">$50M+</h3>
-                <p className="text-muted mb-0">Total Funded</p>
-              </div>
-            </div>
-            <div className="col-md-3 mb-4">
-              <div className="bg-white p-4 rounded shadow-sm h-100">
-                <i className="fas fa-globe fa-3x text-info mb-3"></i>
-                <h3 className="h4 fw-bold text-info">50+</h3>
-                <p className="text-muted mb-0">Countries</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+
 
       {/* Features Section */}
-      <section id="features" className="py-5">
+
+
+      <section id="proposals" className="py-5 bg-light">
         <div className="container">
           <div className="text-center mb-5">
-            <h2 className="display-5 fw-bold">Powerful Features for Everyone</h2>
-            <p className="lead text-muted">Whether you're an innovator or investor, Ganjes DAO has the tools you need</p>
+            <h2 className="display-5 fw-bold">Active Proposals</h2>
+            <p className="lead text-muted">Discover innovative projects seeking funding through our DAO</p>
+            {currentNetwork && (
+              <small className="text-muted">
+                <i className="fas fa-network-wired me-1"></i>
+                Connected to {currentNetwork.chainName}
+              </small>
+            )}
           </div>
-          {isLoading ? (
-            <div className="text-center">
-              <div className="loading-spinner" style={{ border: '4px solid #f3f3f3', borderTop: '4px solid #3498db', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite', margin: 'auto' }}></div>
-              <p className="mt-3">Fetching Proposals from Blockchain...</p>
-              <style>{`
-                @keyframes spin {
-                  0% { transform: rotate(0deg); }
-                  100% { transform: rotate(360deg); }
-                }
-              `}</style>
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading proposals...</span>
+              </div>
+              <p className="mt-3 text-muted">Loading proposals from blockchain...</p>
             </div>
-          ) : proposalDetails.length === 0 ? (
-            <div className="text-center">
-              <p className="text-muted">No proposals available on this network.</p>
+          )}
+
+          {/* No Network Connected */}
+          {!currentNetwork && !isLoading && (
+            <div className="text-center py-5">
+              <div className="mb-4">
+                <i className="fas fa-plug fa-4x text-muted opacity-50"></i>
+              </div>
+              <h4 className="text-muted">No Network Connected</h4>
+              <p className="text-muted mb-4">Please connect to a network to view proposals</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="btn btn-outline-primary"
+              >
+                <i className="fas fa-refresh me-2"></i>
+                Refresh Page
+              </button>
             </div>
-          ) : (
+          )}
+
+          {/* No Proposals Found */}
+          {currentNetwork && !isLoading && proposalDetails.length === 0 && (
+            <div className="text-center py-5">
+              <div className="mb-4">
+                <i className="fas fa-inbox fa-4x text-muted opacity-50"></i>
+              </div>
+              <h4 className="text-muted">No Proposals Found</h4>
+              <p className="text-muted mb-4">
+                No proposals found on <strong>{currentNetwork.chainName}</strong> network.
+                <br />
+                Be the first to submit a proposal or try switching to a different network.
+              </p>
+              <div className="d-flex justify-content-center gap-3">
+                <button
+                  onClick={navigateToDashboard}
+                  className="btn btn-primary"
+                >
+                  <i className="fas fa-plus me-2"></i>
+                  Submit Proposal
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="btn btn-outline-secondary"
+                >
+                  <i className="fas fa-refresh me-2"></i>
+                  Refresh
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Proposals Grid */}
+          {!isLoading && proposalDetails.length > 0 && (
             <div className="row g-4">
               {proposalDetails.map((proposal) => (
                 <div key={proposal.id} className="col-md-6 col-lg-4">
-                  <div className="card h-100 shadow-sm border-0">
+                  <div className="card h-100 shadow-sm border-0 hover-card" style={{
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer'
+                  }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-5px)';
+                      e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+                    }}>
                     <div className="card-body">
                       <div className="row">
                         <div className="col-9 align-self-center">
-                          <h5 className="card-title mt-2">{proposal.projectName}</h5>
+                          <h5 className="card-title mt-2 fw-bold text-dark">
+                            {proposal.projectName}
+                          </h5>
                         </div>
                         <div className="col-3 text-end">
                           <img
-                            className="bg-warning bg-opacity-10 rounded-circle"
+                            className="bg-warning bg-opacity-10 rounded-circle p-1"
                             src="assets/image/logo/light-log.png"
-                            width={30}
+                            width={35}
+                            height={35}
                             alt="Ganjes DAO"
+                            style={{ objectFit: 'contain' }}
                           />
                         </div>
                         <div className="col-12 mt-3">
-                          <span>{proposal.description}</span>
+                          <p className="text-muted small mb-3" style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>
+                            {proposal.description}
+                          </p>
                         </div>
-                        <div className="col-8 mt-5">
-                          <h6>
-                             {proposal.passed ? "Passed" : "Pending"}
-                          </h6>
+
+                        {/* Proposal Stats */}
+                        <div className="col-12 mb-3">
+                          <div className="row g-2">
+                            <div className="col-6">
+                              <small className="text-muted d-block">Funding Goal</small>
+                              <strong className="text-primary">{proposal.fundingGoal} ETH</strong>
+                            </div>
+                            <div className="col-6">
+                              <small className="text-muted d-block">Invested</small>
+                              <strong className="text-success">{proposal.totalInvested} ETH</strong>
+                            </div>
+                          </div>
                         </div>
-                        <div className="col-4 mt-5 text-end">
-                          <a
-                            onClick={()=>proposalData(proposal.id)}
-                            className="badge bg-warning bg-opacity-10 rounded-pill text-dark"
-                            target="_blank"
-                            rel="noopener noreferrer"
+
+                        <div className="col-8 mt-3">
+                          <span className={`badge ${proposal.passed ? 'bg-success' : 'bg-warning'} bg-opacity-10 ${proposal.passed ? 'text-success' : 'text-warning'} px-3 py-2`}>
+                            <i className={`fas ${proposal.passed ? 'fa-check-circle' : 'fa-clock'} me-1`}></i>
+                            {proposal.passed ? "Approved" : "Pending"}
+                          </span>
+                        </div>
+                        <div className="col-4 mt-3 text-end">
+                          <button
+                            onClick={() => proposalData(proposal.id)}
+                            className="btn btn-outline-primary btn-sm rounded-pill"
+                            title="View Details"
                           >
-                            <i className="fa-solid fa-arrow-trend-up"></i>
-                          </a>
+                            <i className="fas fa-arrow-right"></i>
+                          </button>
                         </div>
-                        {/* <div className="col-12 mt-3">
-                          <p>Funding Goal: {proposal.fundingGoal} ETH</p>
-                          <p>Total Invested: {proposal.totalInvested} ETH</p>
-                          <p>Voting Ends: {proposal.endTime}</p>
-                          <p>Status: {proposal.passed ? "Passed" : "Pending"}</p>
-                        </div> */}
                       </div>
                     </div>
                   </div>
@@ -574,11 +622,24 @@ function MarketPlace() {
               ))}
             </div>
           )}
+
+          {/* Show More Button */}
+          {!isLoading && proposalDetails.length > 0 && (
+            <div className="text-center mt-5">
+              <button
+                onClick={navigateToDashboard}
+                className="btn btn-outline-primary btn-lg"
+              >
+                <i className="fas fa-eye me-2"></i>
+                View All Proposals
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
       {/* Footer */}
-      <Footer/>
+      <Footer />
       <ToastContainer position="top-right" autoClose={5000} />
     </>
   );

@@ -22,12 +22,12 @@ class DAOService {
    */
   async initialize(network) {
     if (!window.ethereum) {
-      throw new Error('MetaMask not detected');
+      throw new Error('MetaMask not detected. Please install MetaMask extension.');
     }
 
     try {
       this.currentNetwork = network;
-      
+
       // Get contract address with better error handling
       try {
         this.contractAddress = getContractAddress(network.chainId);
@@ -35,45 +35,70 @@ class DAOService {
         console.warn('Failed to get contract address:', error);
         this.contractAddress = null;
       }
-      
+
       if (!this.contractAddress || this.contractAddress === '0x0000000000000000000000000000000000000000') {
         throw new Error(`DAO contract not deployed on ${network.chainName}. Please check network configuration.`);
+      }
+
+      // Check if MetaMask is connected
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length === 0) {
+          throw new Error('MetaMask not connected. Please connect your wallet first.');
+        }
+      } catch (accountError) {
+        throw new Error(`Failed to check MetaMask connection: ${accountError.message}`);
       }
 
       // Create provider and contracts with better error handling
       try {
         this.provider = new ethers.BrowserProvider(window.ethereum);
-        
+
         // Test provider connection
-        await this.provider.getNetwork();
-        
+        const network_info = await this.provider.getNetwork();
+        console.log('Provider connected to network:', network_info.name, network_info.chainId);
+
         const signer = await this.provider.getSigner();
-        
+
         // Test signer
-        await signer.getAddress();
-        
+        const signerAddress = await signer.getAddress();
+        console.log('Signer address:', signerAddress);
+
         this.daoContract = new ethers.Contract(this.contractAddress, daoABI, signer);
-        
+
         // Test contract connection by calling a simple view method
         try {
-          await this.daoContract.proposalCount();
+          const proposalCount = await this.daoContract.proposalCount();
+          console.log('Contract test successful, proposal count:', proposalCount.toString());
         } catch (contractError) {
           console.warn('Contract method test failed, but continuing...', contractError);
+          // Don't throw here, as the contract might still work for other methods
         }
-        
+
         console.log(`✅ DAO Service initialized successfully for ${network.chainName}`, {
           contractAddress: this.contractAddress,
           networkId: network.chainId,
           hasProvider: !!this.provider,
-          hasContract: !!this.daoContract
+          hasContract: !!this.daoContract,
+          signerAddress
         });
-        
+
         return true;
       } catch (providerError) {
         console.error('Provider/signer initialization failed:', providerError);
-        throw new Error(`Failed to connect to ${network.chainName}: ${providerError.message}`);
+
+        // Provide more specific error messages
+        if (providerError.code === 4001) {
+          throw new Error('Connection rejected by user. Please approve the connection request.');
+        } else if (providerError.code === -32002) {
+          throw new Error('Connection request already pending. Please check MetaMask.');
+        } else if (providerError.message.includes('user rejected')) {
+          throw new Error('Connection rejected by user.');
+        } else {
+          throw new Error(`Failed to connect to ${network.chainName}: ${providerError.message}`);
+        }
       }
-      
+
     } catch (error) {
       console.error('Failed to initialize DAO Service:', error);
       this.cleanup(); // Clean up partial initialization
@@ -95,7 +120,7 @@ class DAOService {
       let totalFunded = 0;
       let daoBalance = 0;
       let allProposalIds = [];
-      
+
       try {
         totalProposals = await this.daoContract.getTotalProposals();
         totalProposals = Number(totalProposals);
@@ -141,7 +166,7 @@ class DAOService {
       let totalInvestors = 0;
       let averageFunding = 0;
       let successRate = 0;
-      
+
       try {
         totalInvestors = await this.daoContract.getActiveInvestorCount();
         totalInvestors = Number(totalInvestors);
@@ -195,7 +220,7 @@ class DAOService {
 
     try {
       let proposalIds = [];
-      
+
       // Try to get proposal IDs
       try {
         proposalIds = await this.daoContract.getAllProposalIds();
@@ -281,7 +306,7 @@ class DAOService {
       // Group proposals by proposer
       proposals.forEach(proposal => {
         const proposer = proposal.proposer;
-        
+
         if (!proposersMap.has(proposer)) {
           proposersMap.set(proposer, {
             address: proposer,
@@ -295,7 +320,7 @@ class DAOService {
         const proposerData = proposersMap.get(proposer);
         proposerData.totalProposals += 1;
         proposerData.proposals.push(proposal);
-        
+
         if (proposal.passed) {
           proposerData.approvedProposals += 1;
           proposerData.totalFunding += parseFloat(proposal.totalInvested);
@@ -304,7 +329,7 @@ class DAOService {
 
       return Array.from(proposersMap.values()).map(proposer => ({
         ...proposer,
-        successRate: proposer.totalProposals > 0 
+        successRate: proposer.totalProposals > 0
           ? (proposer.approvedProposals / proposer.totalProposals * 100).toFixed(1)
           : 0,
         averageFunding: proposer.approvedProposals > 0
@@ -327,7 +352,7 @@ class DAOService {
 
     try {
       const activeInvestorCount = await this.daoContract.getActiveInvestorCount();
-      
+
       return {
         totalInvestors: Number(activeInvestorCount),
         activeInvestors: Number(activeInvestorCount)
@@ -362,10 +387,10 @@ class DAOService {
     try {
       const tx = await this.daoContract.executeProposal(proposalId);
       toast.info('Transaction submitted. Waiting for confirmation...');
-      
+
       const receipt = await tx.wait();
       toast.success('Proposal executed successfully!');
-      
+
       return {
         transactionHash: receipt.hash,
         blockNumber: receipt.blockNumber,
@@ -430,7 +455,7 @@ class DAOService {
     const availableMethods = [];
     const testMethods = [
       'proposalCount',
-      'getTotalProposals', 
+      'getTotalProposals',
       'getAllProposalIds',
       'getDAOBalance',
       'getTotalFundedAmount',

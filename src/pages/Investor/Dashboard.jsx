@@ -33,7 +33,7 @@ function InvestorDashboard() {
   const [showVoteModal, setShowVoteModal] = useState(false);
   const [selectedProposalId, setSelectedProposalId] = useState(null);
   const [voteAmount, setVoteAmount] = useState(15);
-  
+
   // Filter states
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSort, setFilterSort] = useState('newest');
@@ -171,7 +171,7 @@ function InvestorDashboard() {
     styleSheet.type = "text/css";
     styleSheet.innerText = customStyles;
     styleSheet.id = "dashboard-custom-styles";
-    
+
     // Check if styles already exist
     const existingStyles = document.getElementById("dashboard-custom-styles");
     if (!existingStyles) {
@@ -216,7 +216,7 @@ function InvestorDashboard() {
 
     // Filter by search query
     if (searchQuery) {
-      filtered = filtered.filter(p => 
+      filtered = filtered.filter(p =>
         (p.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.proposer || '').toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -257,7 +257,7 @@ function InvestorDashboard() {
       setContractAddress(address);
       console.log(`Network changed to: ${network.chainName}`);
       console.log(`Contract address: ${address}`);
-      
+
       // Initialize contract with new network
       initializeContract(address);
     } else {
@@ -270,7 +270,7 @@ function InvestorDashboard() {
   // Initialize contract and fetch proposals
   const initializeContract = async (contractAddr) => {
     if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-      toast.warning("⚠️ Contract not deployed on this network yet!");
+
       setDaoContract(null);
       setProposalDetails([]);
       return;
@@ -294,19 +294,16 @@ function InvestorDashboard() {
       // Fetch all proposal IDs
       const ids = await contract.getAllProposalIds();
       await getProposalDetails(ids, contract);
-      
-      toast.success(`✅ Connected to contract on ${currentNetwork?.chainName}`);
+
     } catch (error) {
-      console.error("Init error:", error.message);
-      
+
+
       if (error.message.includes("could not detect network")) {
         toast.error("❌ Failed to connect to the network. Please check your wallet connection.");
       } else if (error.message.includes("user rejected")) {
         toast.error("❌ Connection rejected by user.");
-      } else {
-        toast.error(`❌ Failed to initialize contract: ${error.message}`);
       }
-      
+
       setDaoContract(null);
       setProposalDetails([]);
     } finally {
@@ -326,7 +323,7 @@ function InvestorDashboard() {
 
         const proposaldata = await proposal
         console.log('Proposal Data', proposaldata);
-        
+
         // Safely convert BigInt values to strings first, then to numbers where needed
         const endTimeStr = proposal.endTime ? proposal.endTime.toString() : '0';
         const fundingGoalStr = proposal.fundingGoal ? proposal.fundingGoal.toString() : '0';
@@ -335,7 +332,7 @@ function InvestorDashboard() {
         const totalVotesForStr = proposal.totalVotesFor ? proposal.totalVotesFor.toString() : '0';
         const totalVotesAgainstStr = proposal.totalVotesAgainst ? proposal.totalVotesAgainst.toString() : '0';
         const votersAgainst = proposaldata.votersAgainst ? proposal.votersAgainst.toString() : '0';
-        
+
         return {
           id: id.toString(),
           description: proposal.description || "",
@@ -358,7 +355,7 @@ function InvestorDashboard() {
         result: details
       }]);
     } catch (error) {
-      console.error("Error fetching proposal details:", error);
+
       setProposalDetails([]);
     }
   };
@@ -381,28 +378,28 @@ function InvestorDashboard() {
       toast.error("Contract not initialized properly");
       return;
     }
-    
+
     const support = true;
     try {
       setLoading(true);
       toast.info("Approving tokens...");
-      
+
       // Convert amount to string for consistency
       const amountStr = amount.toString();
-      
+
       await approveTokens(amountStr);
-      
+
       toast.info("Casting vote...");
       const tx = await daoContract.vote(proposalId, support, ethers.parseEther(amountStr));
       await tx.wait();
-      
+
       toast.success('Vote cast successfully!');
       closeVoteModal();
-      
+
       // Refresh proposal details with proper parameters
       const ids = await daoContract.getAllProposalIds();
       await getProposalDetails(ids, daoContract);
-      
+
     } catch (error) {
       console.error('Error voting:', error);
       if (error.message.includes("insufficient allowance")) {
@@ -432,14 +429,14 @@ function InvestorDashboard() {
       toast.error("Token contract or signer not initialized");
       return;
     }
-    
+
     try {
       // Create token contract instance using the address and ABI
       const tokenContractInstance = new ethers.Contract(tokenContract, tokenABI, signer);
-      
+
       const tx = await tokenContractInstance.approve(contractAddress, ethers.parseEther(amount));
       await tx.wait();
-      
+
       toast.success(`Approved ${amount} tokens for DAO contract!`);
     } catch (error) {
       console.error('Error approving tokens:', error);
@@ -452,12 +449,12 @@ function InvestorDashboard() {
     }
   };
 
-const starttoVote = (proposalId) =>{
-  localStorage.setItem('proposalId',proposalId)
+  const starttoVote = (proposalId) => {
+    localStorage.setItem('proposalId', proposalId)
 
-  window.location.href='/investor-vote'
+    window.location.href = '/investor-vote'
 
-}
+  }
 
   return (
     <>
@@ -478,7 +475,7 @@ const starttoVote = (proposalId) =>{
                   <li className="breadcrumb-item active">Dashboard</li>
                 </ol>
 
-               
+
 
                 {loading ? (
                   <div className="text-center my-5">
@@ -622,13 +619,13 @@ const starttoVote = (proposalId) =>{
                                 {searchQuery ? 'No matching proposals found' : 'No proposals found'}
                               </h5>
                               <p className="text-muted mb-0">
-                                {searchQuery 
-                                  ? 'Try adjusting your search terms or filters' 
+                                {searchQuery
+                                  ? 'Try adjusting your search terms or filters'
                                   : 'There are currently no investment proposals available on this network.'
                                 }
                               </p>
                               {searchQuery && (
-                                <button 
+                                <button
                                   className="btn btn-primary mt-3"
                                   onClick={() => {
                                     setSearchQuery('');
@@ -722,15 +719,15 @@ const starttoVote = (proposalId) =>{
                                     </span>
                                   </div>
                                   <div className="progress mb-2" style={{ height: '12px', borderRadius: '10px' }}>
-                                    <div 
-                                      className="funding-progress-bar" 
-                                      role="progressbar" 
-                                      style={{ 
+                                    <div
+                                      className="funding-progress-bar"
+                                      role="progressbar"
+                                      style={{
                                         width: `${(() => {
                                           const invested = parseFloat(p.totalInvested || '0');
                                           const goal = parseFloat(p.fundingGoal || '0');
                                           return goal > 0 ? Math.min((invested / goal) * 100, 100) : 0;
-                                        })()}%` 
+                                        })()}%`
                                       }}
                                     ></div>
                                   </div>
@@ -759,8 +756,8 @@ const starttoVote = (proposalId) =>{
                               </div>
 
                               <div className="card-footer bg-white border-0 pt-0">
-                                <button 
-                                  onClick={() => starttoVote(p.id)} 
+                                <button
+                                  onClick={() => starttoVote(p.id)}
                                   className="btn vote-button w-100 text-white"
                                   disabled={p.executed}
                                 >
@@ -801,7 +798,7 @@ const starttoVote = (proposalId) =>{
         </div>
       </div>
 
-     
+
     </>
   );
 }

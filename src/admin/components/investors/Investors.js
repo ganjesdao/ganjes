@@ -4,16 +4,30 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import AdminPageLayout from '../common/AdminPageLayout';
+import PageHeader from '../common/PageHeader';
+import SearchBar from '../common/SearchBar';
+import MobileTable from '../common/MobileTable';
+import { useDAOData } from '../../hooks/useDAOData';
 
 const Investors = () => {
-  const [investors, setInvestors] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const { currentNetwork } = useSelector(state => state.auth);
 
-  // Mock data for investors
-  const mockInvestors = [
+  // Use real DAO data
+  const {
+    investors,
+    isLoading: loading,
+    error,
+    refreshData
+  } = useDAOData(currentNetwork, true);
+
+  // Fallback data for when real data is not available
+  const fallbackInvestors = [
     {
       id: 1,
+      address: '0xabcd...efgh',
       name: 'Alice Johnson',
       email: 'alice@example.com',
       walletAddress: '0xabcd...efgh',
@@ -26,6 +40,7 @@ const Investors = () => {
     },
     {
       id: 2,
+      address: '0x1234...9876',
       name: 'Mark Rodriguez',
       email: 'mark@example.com',
       walletAddress: '0x1234...9876',
@@ -35,61 +50,32 @@ const Investors = () => {
       votingPower: 125000,
       status: 'active',
       joinDate: '2024-01-25'
-    },
-    {
-      id: 3,
-      name: 'Sarah Chen',
-      email: 'sarah@example.com',
-      walletAddress: '0x5678...abcd',
-      tokenBalance: 30000,
-      totalInvested: 15000,
-      activeInvestments: 5,
-      votingPower: 30000,
-      status: 'active',
-      joinDate: '2024-03-05'
-    },
-    {
-      id: 4,
-      name: 'David Kim',
-      email: 'david@example.com',
-      walletAddress: '0x9999...0000',
-      tokenBalance: 5000,
-      totalInvested: 2500,
-      activeInvestments: 2,
-      votingPower: 5000,
-      status: 'inactive',
-      joinDate: '2024-06-15'
     }
   ];
 
-  useEffect(() => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setInvestors(mockInvestors);
-      setLoading(false);
-    }, 1000);
-  }, []);
+  // Use real data if available, otherwise fallback
+  const displayInvestors = investors && investors.length > 0 ? investors : fallbackInvestors;
 
-  const filteredInvestors = investors.filter(investor =>
-    investor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    investor.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredInvestors = displayInvestors.filter(investor =>
+    (investor.name && investor.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (investor.email && investor.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (investor.address && investor.address.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, isMobile = false) => {
     const colors = {
       active: '#10b981',
       inactive: '#6b7280',
       suspended: '#ef4444'
     };
-    
+
     return (
       <span style={{
         padding: '0.25rem 0.75rem',
         borderRadius: '9999px',
         backgroundColor: colors[status] || '#6b7280',
         color: 'white',
-        fontSize: '0.75rem',
+        fontSize: isMobile ? '0.7rem' : '0.75rem',
         fontWeight: '500'
       }}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -108,372 +94,338 @@ const Investors = () => {
     return { name: 'Bronze', color: '#cd7c2f' };
   };
 
+  const handleRowAction = (action, row) => {
+    console.log(`${action} action for investor:`, row);
+    // TODO: Implement actual actions
+  };
+
+  const getTableColumns = (isMobile = false) => [
+    {
+      key: 'investor',
+      label: 'Investor',
+      render: (value, row) => (
+        <div>
+          <div style={{
+            fontWeight: '500',
+            color: '#1f2937',
+            fontSize: isMobile ? '0.8rem' : '0.875rem'
+          }}>
+            {row.name}
+          </div>
+          <div style={{
+            color: '#6b7280',
+            fontSize: isMobile ? '0.7rem' : '0.75rem',
+            marginTop: '0.125rem'
+          }}>
+            {row.email}
+          </div>
+          {!isMobile && (
+            <code style={{
+              fontSize: '0.6rem',
+              backgroundColor: '#f3f4f6',
+              padding: '0.125rem 0.25rem',
+              borderRadius: '3px',
+              color: '#374151',
+              marginTop: '0.25rem',
+              display: 'block'
+            }}>
+              {row.walletAddress}
+            </code>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'wallet',
+      label: 'Wallet',
+      render: (value, row) => (
+        <code style={{
+          fontSize: isMobile ? '0.7rem' : '0.75rem',
+          backgroundColor: '#f3f4f6',
+          padding: '0.25rem 0.5rem',
+          borderRadius: '4px',
+          color: '#374151'
+        }}>
+          {row.walletAddress}
+        </code>
+      )
+    },
+    {
+      key: 'tokens',
+      label: 'Token Balance',
+      align: 'center',
+      render: (value, row) => (
+        <div>
+          <div style={{
+            fontSize: isMobile ? '0.8rem' : '0.875rem',
+            fontWeight: '500',
+            color: '#1f2937'
+          }}>
+            {formatTokens(row.tokenBalance)} GNJS
+          </div>
+          <div style={{
+            fontSize: isMobile ? '0.7rem' : '0.75rem',
+            color: '#6b7280',
+            marginTop: '0.125rem'
+          }}>
+            Voting: {formatTokens(row.votingPower)}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'investments',
+      label: 'Investments',
+      align: 'center',
+      render: (value, row) => (
+        <div>
+          <div style={{
+            fontSize: isMobile ? '0.8rem' : '0.875rem',
+            fontWeight: '500',
+            color: '#1f2937'
+          }}>
+            ${formatTokens(row.totalInvested)}
+          </div>
+          <div style={{
+            fontSize: isMobile ? '0.7rem' : '0.75rem',
+            color: '#6b7280',
+            marginTop: '0.125rem'
+          }}>
+            {row.activeInvestments} active
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'tier',
+      label: 'Tier',
+      align: 'center',
+      render: (value, row) => {
+        const tier = getInvestorTier(row.tokenBalance);
+        return (
+          <span style={{
+            padding: '0.25rem 0.75rem',
+            borderRadius: '9999px',
+            backgroundColor: tier.color,
+            color: 'white',
+            fontSize: isMobile ? '0.7rem' : '0.75rem',
+            fontWeight: '500'
+          }}>
+            {tier.name}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      align: 'center',
+      render: (value, row) => getStatusBadge(row.status, isMobile)
+    }
+  ];
+
+  const totalTokens = displayInvestors.reduce((sum, investor) => sum + (investor.tokenBalance || 0), 0);
+  const totalInvested = displayInvestors.reduce((sum, investor) => sum + (investor.totalInvested || 0), 0);
+  const activeInvestors = displayInvestors.filter(investor => investor.status === 'active').length;
+
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '400px'
-      }}>
-        <div style={{
-          width: '40px',
-          height: '40px',
-          border: '4px solid #f3f3f3',
-          borderTop: '4px solid #3498db',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }} />
-        <style>
-          {`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}
-        </style>
-      </div>
+      <AdminPageLayout>
+        {({ isMobile }) => (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '400px'
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              border: '4px solid #f3f3f3',
+              borderTop: '4px solid #3498db',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }} />
+            <style>
+              {`
+                @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              `}
+            </style>
+          </div>
+        )}
+      </AdminPageLayout>
     );
   }
 
-  const totalTokens = investors.reduce((sum, investor) => sum + investor.tokenBalance, 0);
-  const totalInvested = investors.reduce((sum, investor) => sum + investor.totalInvested, 0);
-  const activeInvestors = investors.filter(investor => investor.status === 'active').length;
-
   return (
-    <div>
-      {/* Header Section */}
-      <div style={{
-        marginBottom: '2rem',
-        padding: '1.5rem',
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1rem'
-        }}>
-          <div>
-            <h2 style={{
-              fontSize: '1.5rem',
-              fontWeight: '600',
-              color: '#1f2937',
-              margin: 0
-            }}>
-              👥 Investors Management
-            </h2>
-            <p style={{
-              color: '#6b7280',
-              fontSize: '0.875rem',
-              margin: '0.25rem 0 0 0'
-            }}>
-              Manage investors, their portfolios and voting power
-            </p>
-          </div>
-        </div>
+    <AdminPageLayout>
+      {({ isMobile }) => (
+        <>
+          <PageHeader
+            title="Investors Management"
+            description="Manage investors, their portfolios and voting power"
+            icon="👥"
+            totalCount={displayInvestors.length}
+            showStats={true}
+            isMobile={isMobile}
+          >
+            <SearchBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              placeholder="Search investors..."
+              isMobile={isMobile}
+            />
+          </PageHeader>
 
-        {/* Stats Cards */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem'
-        }}>
+          {/* Stats Cards */}
           <div style={{
-            padding: '1rem',
-            backgroundColor: '#eff6ff',
-            borderRadius: '8px',
-            border: '1px solid #dbeafe'
+            display: 'grid',
+            gridTemplateColumns: isMobile
+              ? '1fr'
+              : 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: isMobile ? '0.75rem' : '1rem',
+            marginBottom: isMobile ? '1.5rem' : '2rem'
           }}>
-            <div style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: '500' }}>
-              TOTAL INVESTORS
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e40af' }}>
-              {investors.length}
-            </div>
-          </div>
-          <div style={{
-            padding: '1rem',
-            backgroundColor: '#f0fdf4',
-            borderRadius: '8px',
-            border: '1px solid #dcfce7'
-          }}>
-            <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '500' }}>
-              ACTIVE INVESTORS
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#15803d' }}>
-              {activeInvestors}
-            </div>
-          </div>
-          <div style={{
-            padding: '1rem',
-            backgroundColor: '#fefce8',
-            borderRadius: '8px',
-            border: '1px solid #fef3c7'
-          }}>
-            <div style={{ fontSize: '0.75rem', color: '#ca8a04', fontWeight: '500' }}>
-              TOTAL TOKENS
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#a16207' }}>
-              {formatTokens(totalTokens)} GNJS
-            </div>
-          </div>
-          <div style={{
-            padding: '1rem',
-            backgroundColor: '#fdf2f8',
-            borderRadius: '8px',
-            border: '1px solid #fce7f3'
-          }}>
-            <div style={{ fontSize: '0.75rem', color: '#be185d', fontWeight: '500' }}>
-              TOTAL INVESTED
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#9d174d' }}>
-              ${formatTokens(totalInvested)}
-            </div>
-          </div>
-        </div>
-
-        {/* Search Bar */}
-        <div style={{
-          display: 'flex',
-          gap: '1rem',
-          alignItems: 'center'
-        }}>
-          <input
-            type="text"
-            placeholder="Search investors..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              flex: 1,
-              padding: '0.75rem',
-              border: '1px solid #d1d5db',
+            <div style={{
+              padding: isMobile ? '0.75rem' : '1rem',
+              backgroundColor: '#eff6ff',
               borderRadius: '8px',
-              fontSize: '0.875rem'
-            }}
+              border: '1px solid #dbeafe'
+            }}>
+              <div style={{
+                fontSize: '0.75rem',
+                color: '#3b82f6',
+                fontWeight: '500'
+              }}>
+                TOTAL INVESTORS
+              </div>
+              <div style={{
+                fontSize: isMobile ? '1.25rem' : '1.5rem',
+                fontWeight: '700',
+                color: '#1e40af'
+              }}>
+                {displayInvestors.length}
+              </div>
+            </div>
+            <div style={{
+              padding: isMobile ? '0.75rem' : '1rem',
+              backgroundColor: '#f0fdf4',
+              borderRadius: '8px',
+              border: '1px solid #dcfce7'
+            }}>
+              <div style={{
+                fontSize: '0.75rem',
+                color: '#16a34a',
+                fontWeight: '500'
+              }}>
+                ACTIVE INVESTORS
+              </div>
+              <div style={{
+                fontSize: isMobile ? '1.25rem' : '1.5rem',
+                fontWeight: '700',
+                color: '#15803d'
+              }}>
+                {activeInvestors}
+              </div>
+            </div>
+            <div style={{
+              padding: isMobile ? '0.75rem' : '1rem',
+              backgroundColor: '#fefce8',
+              borderRadius: '8px',
+              border: '1px solid #fef3c7'
+            }}>
+              <div style={{
+                fontSize: '0.75rem',
+                color: '#ca8a04',
+                fontWeight: '500'
+              }}>
+                TOTAL TOKENS
+              </div>
+              <div style={{
+                fontSize: isMobile ? '1.25rem' : '1.5rem',
+                fontWeight: '700',
+                color: '#a16207'
+              }}>
+                {formatTokens(totalTokens)} GNJS
+              </div>
+            </div>
+            <div style={{
+              padding: isMobile ? '0.75rem' : '1rem',
+              backgroundColor: '#fdf2f8',
+              borderRadius: '8px',
+              border: '1px solid #fce7f3'
+            }}>
+              <div style={{
+                fontSize: '0.75rem',
+                color: '#be185d',
+                fontWeight: '500'
+              }}>
+                TOTAL INVESTED
+              </div>
+              <div style={{
+                fontSize: isMobile ? '1.25rem' : '1.5rem',
+                fontWeight: '700',
+                color: '#9d174d'
+              }}>
+                ${formatTokens(totalInvested)}
+              </div>
+            </div>
+          </div>
+
+          <MobileTable
+            data={filteredInvestors}
+            columns={isMobile
+              ? getTableColumns(isMobile).filter(col => col.key !== 'wallet')
+              : getTableColumns(isMobile)
+            }
+            isMobile={isMobile}
+            onRowAction={handleRowAction}
           />
-          <button style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '0.875rem',
-            fontWeight: '500'
-          }}>
-            🔍 Search
-          </button>
-        </div>
-      </div>
 
-      {/* Investors Table */}
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        overflow: 'hidden'
-      }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f9fafb' }}>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontWeight: '600',
-                  color: '#374151',
-                  fontSize: '0.875rem'
-                }}>
-                  Investor
-                </th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'left',
-                  fontWeight: '600',
-                  color: '#374151',
-                  fontSize: '0.875rem'
-                }}>
-                  Wallet Address
-                </th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'center',
-                  fontWeight: '600',
-                  color: '#374151',
-                  fontSize: '0.875rem'
-                }}>
-                  Token Balance
-                </th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'center',
-                  fontWeight: '600',
-                  color: '#374151',
-                  fontSize: '0.875rem'
-                }}>
-                  Investments
-                </th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'center',
-                  fontWeight: '600',
-                  color: '#374151',
-                  fontSize: '0.875rem'
-                }}>
-                  Tier
-                </th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'center',
-                  fontWeight: '600',
-                  color: '#374151',
-                  fontSize: '0.875rem'
-                }}>
-                  Status
-                </th>
-                <th style={{
-                  padding: '1rem',
-                  textAlign: 'center',
-                  fontWeight: '600',
-                  color: '#374151',
-                  fontSize: '0.875rem'
-                }}>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredInvestors.map((investor) => {
-                const tier = getInvestorTier(investor.tokenBalance);
-                return (
-                  <tr key={investor.id} style={{
-                    borderBottom: '1px solid #e5e7eb'
-                  }}>
-                    <td style={{ padding: '1rem' }}>
-                      <div>
-                        <div style={{
-                          fontWeight: '500',
-                          color: '#1f2937',
-                          fontSize: '0.875rem'
-                        }}>
-                          {investor.name}
-                        </div>
-                        <div style={{
-                          color: '#6b7280',
-                          fontSize: '0.75rem',
-                          marginTop: '0.25rem'
-                        }}>
-                          {investor.email}
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '1rem' }}>
-                      <code style={{
-                        fontSize: '0.75rem',
-                        backgroundColor: '#f3f4f6',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        color: '#374151'
-                      }}>
-                        {investor.walletAddress}
-                      </code>
-                    </td>
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <div style={{
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        color: '#1f2937'
-                      }}>
-                        {formatTokens(investor.tokenBalance)} GNJS
-                      </div>
-                      <div style={{
-                        fontSize: '0.75rem',
-                        color: '#6b7280',
-                        marginTop: '0.25rem'
-                      }}>
-                        Voting Power: {formatTokens(investor.votingPower)}
-                      </div>
-                    </td>
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <div style={{
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        color: '#1f2937'
-                      }}>
-                        ${formatTokens(investor.totalInvested)}
-                      </div>
-                      <div style={{
-                        fontSize: '0.75rem',
-                        color: '#6b7280',
-                        marginTop: '0.25rem'
-                      }}>
-                        {investor.activeInvestments} active
-                      </div>
-                    </td>
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <span style={{
-                        padding: '0.25rem 0.75rem',
-                        borderRadius: '9999px',
-                        backgroundColor: tier.color,
-                        color: 'white',
-                        fontSize: '0.75rem',
-                        fontWeight: '500'
-                      }}>
-                        {tier.name}
-                      </span>
-                    </td>
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      {getStatusBadge(investor.status)}
-                    </td>
-                    <td style={{ padding: '1rem', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                        <button style={{
-                          padding: '0.5rem',
-                          backgroundColor: '#3b82f6',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem'
-                        }}>
-                          👁️
-                        </button>
-                        <button style={{
-                          padding: '0.5rem',
-                          backgroundColor: '#10b981',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem'
-                        }}>
-                          📊
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          {error && (
+            <div style={{
+              textAlign: 'center',
+              padding: '2rem',
+              backgroundColor: '#fef2f2',
+              borderRadius: '8px',
+              border: '1px solid #fecaca',
+              marginBottom: '1rem'
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⚠️</div>
+              <p style={{ color: '#dc2626', fontWeight: '500' }}>{error}</p>
+              <button
+                onClick={refreshData}
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
-      {filteredInvestors.length === 0 && (
-        <div style={{
-          textAlign: 'center',
-          padding: '3rem',
-          color: '#6b7280'
-        }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
-          <p>No investors found matching your search.</p>
-        </div>
+          {!error && filteredInvestors.length === 0 && (
+            <div style={{
+              textAlign: 'center',
+              padding: '3rem',
+              color: '#6b7280'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
+              <p>No investors found matching your search.</p>
+            </div>
+          )}
+        </>
       )}
-    </div>
+    </AdminPageLayout>
   );
 };
 

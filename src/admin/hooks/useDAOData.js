@@ -14,7 +14,7 @@ export const useDAOData = (currentNetwork, enabled = true) => {
   const [proposers, setProposers] = useState([]);
   const [investors, setInvestors] = useState([]);
   const [executedProposals, setExecutedProposals] = useState([]);
-  
+
   // Loading states
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -48,8 +48,28 @@ export const useDAOData = (currentNetwork, enabled = true) => {
       return true;
     } catch (error) {
       console.error('Failed to initialize DAO service:', error);
-      setError(`Failed to connect to ${currentNetwork?.chainName}: ${error.message}`);
-      toast.error(`Connection failed: ${error.message}`);
+
+      // Don't show toast for MetaMask connection issues on page load
+      const isConnectionIssue = error.message.includes('not connected') ||
+        error.message.includes('not detected') ||
+        error.message.includes('rejected');
+
+      // Set error state with user-friendly message
+      const errorMessage = isConnectionIssue
+        ? `Please connect your wallet to ${currentNetwork?.chainName || 'the network'}`
+        : `Failed to connect to ${currentNetwork?.chainName}: ${error.message}`;
+
+      setError(errorMessage);
+
+      // Show appropriate user feedback
+      if (!isConnectionIssue) {
+        toast.error(`Connection failed: ${error.message}`);
+      } else {
+        console.warn(`Connection issue: ${error.message}`);
+        // Show a more user-friendly message for connection issues
+        toast.warn('Please connect your wallet to continue');
+      }
+
       return false;
     } finally {
       setIsInitializing(false);
@@ -173,7 +193,7 @@ export const useDAOData = (currentNetwork, enabled = true) => {
       // Check if service is initialized
       const networkInfo = daoService.getNetworkInfo();
       console.log('useDAOData: Service network info', networkInfo);
-      
+
       if (!networkInfo.isInitialized) {
         console.log('useDAOData: Service not initialized, initializing...');
         const initialized = await initializeService();
@@ -202,14 +222,38 @@ export const useDAOData = (currentNetwork, enabled = true) => {
         executed: results[4].status
       });
 
+      // Check for any failed requests and provide specific error messages
+      const failedRequests = results.filter(result => result.status === 'rejected');
+      if (failedRequests.length > 0) {
+        console.warn('useDAOData: Some data requests failed:', failedRequests);
+        const errorMessages = failedRequests.map(result => result.reason?.message || 'Unknown error');
+        const uniqueErrors = [...new Set(errorMessages)];
+
+        if (isMountedRef.current) {
+          setError(`Some data could not be loaded: ${uniqueErrors.join(', ')}`);
+        }
+
+        // Show toast for partial failures
+        toast.warn('Some data could not be loaded. Please check your connection.');
+      }
+
       if (isMountedRef.current) {
         setLastUpdated(new Date());
       }
     } catch (error) {
       console.error('useDAOData: Error fetching DAO data:', error);
+      const errorMessage = error.message.includes('network')
+        ? 'Network connection error. Please check your internet connection.'
+        : error.message.includes('contract')
+          ? 'Smart contract error. Please try again later.'
+          : `Failed to fetch DAO data: ${error.message}`;
+
       if (isMountedRef.current) {
-        setError('Failed to fetch DAO data');
+        setError(errorMessage);
       }
+
+      // Show user-friendly error toast
+      toast.error(errorMessage);
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
@@ -243,10 +287,25 @@ export const useDAOData = (currentNetwork, enabled = true) => {
       const result = await daoService.executeProposal(proposalId);
       // Refresh data after execution
       await fetchAllData();
+      toast.success('Proposal executed successfully!');
       return result;
     } catch (error) {
       console.error('Error executing proposal:', error);
-      throw error;
+
+      // Provide user-friendly error messages
+      const errorMessage = error.message.includes('insufficient funds')
+        ? 'Insufficient funds to execute this proposal'
+        : error.message.includes('not authorized')
+          ? 'You are not authorized to execute this proposal'
+          : error.message.includes('already executed')
+            ? 'This proposal has already been executed'
+            : error.message.includes('voting period')
+              ? 'Voting period has not ended yet'
+              : `Failed to execute proposal: ${error.message}`;
+
+      toast.error(errorMessage);
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   }, [fetchAllData]);
 
@@ -259,13 +318,13 @@ export const useDAOData = (currentNetwork, enabled = true) => {
       enabled,
       hasNetwork: !!currentNetwork
     });
-    
+
     if (currentNetwork && enabled) {
       console.log('useDAOData: Initializing for network', {
         chainName: currentNetwork.chainName,
         chainId: currentNetwork.chainId
       });
-      
+
       // Reset state
       setDashboardMetrics(null);
       setProposals([]);
@@ -273,10 +332,10 @@ export const useDAOData = (currentNetwork, enabled = true) => {
       setInvestors([]);
       setExecutedProposals([]);
       setError(null);
-      
+
       // Cleanup previous service
       daoService.cleanup();
-      
+
       // Initialize and fetch data
       fetchAllData();
     } else {
@@ -318,15 +377,15 @@ export const useDAOData = (currentNetwork, enabled = true) => {
   }, []);
 
   // Computed values
-  const activeProposals = proposals.filter(p => 
+  const activeProposals = proposals.filter(p =>
     new Date() < p.endTime && !p.executed
   );
-  
-  const totalValue = proposals.reduce((sum, p) => 
+
+  const totalValue = proposals.reduce((sum, p) =>
     sum + parseFloat(p.totalInvested || 0), 0
   );
 
-  const isNetworkSupported = currentNetwork && 
+  const isNetworkSupported = currentNetwork &&
     daoService.getNetworkInfo().contractAddress !== '0x0000000000000000000000000000000000000000';
 
   return {

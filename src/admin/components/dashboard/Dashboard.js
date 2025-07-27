@@ -8,16 +8,17 @@ import { useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import { selectUser, selectIsAuthenticated } from '../../store/slices/authSlice';
 import { isTestnet, getContractAddress, NETWORKS } from '../../../utils/networks';
+import { ethers } from 'ethers';
+import { daoABI } from '../../../Auth/Abi';
 import { useDAOData } from '../../hooks/useDAOData';
 import AdminHeader from '../common/AdminHeader';
 import AdminSidebar from '../common/AdminSidebar';
 import AdminFooter from '../common/AdminFooter';
 import AdminNetworkSelector from '../network/AdminNetworkSelector';
 import MetaMaskConnector from '../network/MetaMaskConnector';
+import ConnectionGuide from '../common/ConnectionGuide';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { ethers } from 'ethers';
-import { daoABI } from '../../../Auth/Abi';
 
 
 
@@ -25,6 +26,7 @@ const Dashboard = () => {
   const location = useLocation();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectUser);
+  const [proposalDetails, setProposalDetails] = useState([]);
 
   // Layout state
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -68,6 +70,12 @@ const Dashboard = () => {
     }
   ];
 
+  useEffect(() => {
+    refreshData();
+    // Reset sidebar open state whenever the route changes
+    setSidebarOpen(isMobile ? false : true);
+  }, [location, isMobile]);
+
   // Network change handler
   const handleNetworkChange = useCallback((network) => {
     console.log('Dashboard: Network change handler called', {
@@ -102,16 +110,49 @@ const Dashboard = () => {
 
 
   const fetchProposalsOnNetworkChange = async (contractAddr, network) => {
+    // Check if MetaMask is available
+    if (!window.ethereum) {
+      console.warn('MetaMask not detected, skipping stats fetch');
+      return;
+    }
 
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const daoContract = new ethers.Contract(contractAddr, daoABI, provider);
+    // Check if contract address is valid
+    if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
+      console.warn('Invalid contract address, skipping stats fetch');
+      return;
+    }
+
     try {
+      // Check if MetaMask is connected
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (accounts.length === 0) {
+        console.log('MetaMask not connected, skipping stats fetch');
+        return;
+      }
+
+      // Create provider with error handling
+      const provider = new ethers.BrowserProvider(window.ethereum);
+
+      // Test provider connection
+      await provider.getNetwork();
+
+      // Get signer with error handling
+      const signer = await provider.getSigner();
+
+      // Test signer
+      await signer.getAddress();
+
+      const daoContract = new ethers.Contract(contractAddr, daoABI, signer);
+
+
+      // Test contract connection with a simple call
+      await daoContract.proposalCount();
+
       const totalProposals = await daoContract.getTotalProposals();
       const [approvedCount] = await daoContract.getApprovedProposals();
       const [runningCount] = await daoContract.getRunningProposals();
       const totalFunded = ethers.formatEther(await daoContract.getTotalFundedAmount());
       const activeInvestors = await daoContract.getActiveInvestorCount();
-
 
       setStats({
         totalProposals: totalProposals.toString(),
@@ -121,36 +162,64 @@ const Dashboard = () => {
         activeInvestors: activeInvestors.toString(),
       });
 
-      console.log('Stats:', {
-        totalProposals: totalProposals.toString(),
-        approvedProposals: approvedCount.toString(),
-        runningProposals: runningCount.toString(),
-        totalFunded,
-        activeInvestors: activeInvestors.toString(),
-      });
+
+
+      try {
+        const proposalIds = await daoContract.getAllProposalIds();
+        const proposalData = [];
+
+        for (const id of proposalIds) {
+          try {
+            const basic = await daoContract.getProposalBasicDetails(id);
+            const voting = await daoContract.getProposalVotingDetails(id);
+
+            proposalData.push({
+              id: basic.id.toString(),
+              projectName: basic.projectName,
+              projectUrl: basic.projectUrl,
+              description: basic.description,
+              fundingGoal: ethers.formatEther(basic.fundingGoal),
+              totalInvested: ethers.formatEther(voting.totalInvested),
+              endTime: new Date(Number(basic.endTime) * 1000).toLocaleString(),
+              passed: basic.passed,
+            });
+          } catch (proposalError) {
+            console.warn(`Failed to fetch proposal ${id}:`, proposalError);
+          }
+        }
+
+        setProposalDetails(proposalData);
+        console.log('Proposals loaded:', proposalData);
+      } catch (proposalError) {
+        console.warn('Failed to fetch proposals:', proposalError);
+        setProposalDetails([]);
+      }
+
     } catch (err) {
-      console.error('Error fetching analytics stats:', err);
-      //toast.error('Failed to fetch analytics stats.');
+      console.error(`Error fetching analytics stats for ${network?.chainName}:`, err);
+
+      // Set default stats on error
+      setStats({
+        totalProposals: 0,
+        approvedProposals: 0,
+        runningProposals: 0,
+        totalFunded: '0',
+        activeInvestors: 0,
+      });
+
+      setProposalDetails([]);
+
+      // Only show error toast if it's not a connection issue
+      if (!err.message.includes('user rejected') && !err.message.includes('User denied')) {
+        console.warn(`Failed to connect to ${network?.chainName}: ${err.message}`);
+      }
     }
   };
 
 
-  // Mobile detection and responsive handling
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      // On mobile, start with sidebar closed
-      if (mobile) {
-        setSidebarOpen(false);
-      } else {
-        setSidebarOpen(true);
-      }
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+  // Handle mobile state change from sidebar
+  const handleMobileChange = useCallback((mobile) => {
+    setIsMobile(mobile);
   }, []);
 
   // Initialize with default network if no network is set
@@ -163,28 +232,40 @@ const Dashboard = () => {
       // Try to get current MetaMask network first
       if (window.ethereum) {
         try {
-          const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-          console.log('Dashboard: Current MetaMask network:', chainId);
+          // Check if MetaMask is connected first
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
 
-          // Check if current network is supported
-          const supportedNetwork = Object.values(NETWORKS).find(network =>
-            network.chainId === chainId
-          );
+          if (accounts.length > 0) {
+            // MetaMask is connected, get current network
+            const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+            console.log('Dashboard: Current MetaMask network:', chainId);
 
-          if (supportedNetwork) {
-            console.log('Dashboard: Using current MetaMask network:', supportedNetwork.chainName);
-            handleNetworkChange(supportedNetwork);
-            setNetworkInitialized(true);
-            return;
+            // Check if current network is supported
+            const supportedNetwork = Object.values(NETWORKS).find(network =>
+              network.chainId === chainId
+            );
+
+            if (supportedNetwork) {
+              console.log('Dashboard: Using current MetaMask network:', supportedNetwork.chainName);
+              handleNetworkChange(supportedNetwork);
+              setNetworkInitialized(true);
+              return;
+            } else {
+              console.log('Dashboard: Current network not supported, will use default');
+            }
+          } else {
+            console.log('Dashboard: MetaMask not connected, will use default network');
           }
         } catch (error) {
           console.warn('Dashboard: Failed to get current MetaMask network:', error);
         }
+      } else {
+        console.log('Dashboard: MetaMask not detected, will use default network');
       }
 
       // Fallback to default network (configurable)
-      // Priority: BSC Mainnet -> Ethereum Mainnet -> BSC Testnet
-      const defaultNetwork = NETWORKS.bsc || NETWORKS.ethereum || NETWORKS.bscTestnet;
+      // Priority: BSC Testnet -> BSC Mainnet -> Ethereum Mainnet
+      const defaultNetwork = NETWORKS.BSC_TESTNET || NETWORKS.BSC_MAINNET || NETWORKS.ETH_MAINNET;
       console.log('Dashboard: Using default network:', defaultNetwork.chainName);
       handleNetworkChange(defaultNetwork);
       setNetworkInitialized(true);
@@ -215,13 +296,15 @@ const Dashboard = () => {
     return null;
   }
 
+
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
       {/* Admin Sidebar */}
       <AdminSidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
-        isMobile={isMobile}
+        onMobileChange={handleMobileChange}
       />
 
       {/* Main Content */}
@@ -437,6 +520,14 @@ const Dashboard = () => {
                 </div>
               )}
 
+              {/* Connection Guide - Show when MetaMask connection issues */}
+              {error && (error.includes('not connected') || error.includes('not detected')) && (
+                <ConnectionGuide
+                  onConnected={handleMetaMaskConnected}
+                  isMobile={isMobile}
+                />
+              )}
+
               {/* Last Updated Info */}
               {lastUpdated && (
                 <div style={{
@@ -564,76 +655,372 @@ const Dashboard = () => {
               </div>
 
               {/* Live Proposals Overview */}
+              {/* 📊 Recent Proposals Overview - Unique Design */}
               <div style={{
-                backgroundColor: 'white',
-                borderRadius: '12px',
-                padding: isMobile ? '1.5rem' : '2rem',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                marginBottom: isMobile ? '1.5rem' : '2rem'
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: '24px',
+                padding: '0',
+                boxShadow: '0 20px 40px rgba(102, 126, 234, 0.15)',
+                marginBottom: isMobile ? '1.5rem' : '2rem',
+                overflow: 'hidden',
+                position: 'relative'
               }}>
-                <h3 style={{
-                  fontSize: isMobile ? '1.1rem' : '1.25rem',
-                  fontWeight: '600',
-                  color: '#1f2937',
-                  marginBottom: isMobile ? '1rem' : '1.5rem',
-                  lineHeight: '1.3'
+                {/* Floating Background Elements */}
+                <div style={{
+                  position: 'absolute',
+                  top: '-50px',
+                  right: '-50px',
+                  width: '150px',
+                  height: '150px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  borderRadius: '50%',
+                  filter: 'blur(40px)'
+                }}></div>
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-30px',
+                  left: '-30px',
+                  width: '100px',
+                  height: '100px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  borderRadius: '50%',
+                  filter: 'blur(30px)'
+                }}></div>
+
+                {/* Header Section */}
+                <div style={{
+                  padding: isMobile ? '2rem 1.5rem 1rem' : '2.5rem 2rem 1.5rem',
+                  position: 'relative',
+                  zIndex: 2
                 }}>
-                  📊 Recent Proposals Overview
-                </h3>
-
-                {isLoading ? (
-                  <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                    <div style={{
-                      width: '24px',
-                      height: '24px',
-                      border: '2px solid #f3f3f3',
-                      borderTop: '2px solid #3b82f6',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite',
-                      margin: '0 auto 1rem'
-                    }} />
-                    Loading recent proposals...
-                  </div>
-                ) : proposals.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                    No proposals found on this network.
-                  </div>
-                ) : (
                   <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(350px, 1fr))',
-                    gap: '1rem'
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '1rem'
                   }}>
-                    {proposals.slice(0, 4).map((proposal) => (
-                      <ProposalPreviewCard
-                        key={proposal.id}
-                        proposal={proposal}
-                        isMobile={isMobile}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {proposals.length > 4 && (
-                  <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-                    <button
-                      style={{
-                        padding: '0.75rem 1.5rem',
-                        backgroundColor: '#3b82f6',
+                    <h3 style={{
+                      fontSize: isMobile ? '1.4rem' : '1.6rem',
+                      fontWeight: '700',
+                      color: 'white',
+                      margin: '0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      <span style={{
+                        fontSize: '1.8rem',
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+                      }}>📊</span>
+                      Recent Proposals Overview
+                    </h3>
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      borderRadius: '12px',
+                      padding: '0.5rem 1rem',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)'
+                    }}>
+                      <span style={{
                         color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontSize: isMobile ? '0.9rem' : '1rem',
-                        fontWeight: '500'
-                      }}
-                      onClick={() => window.location.href = '/admin/proposals'}
-                    >
-                      View All {proposals.length} Proposals
-                    </button>
+                        fontSize: '0.9rem',
+                        fontWeight: '600'
+                      }}>
+                        {proposalDetails.length} Active
+                      </span>
+                    </div>
                   </div>
-                )}
+                  <p style={{
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    margin: '0',
+                    fontSize: '1rem'
+                  }}>
+                    Monitor and manage DAO proposals in real-time
+                  </p>
+                </div>
+
+                {/* Content Section */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(10px)',
+                  borderRadius: '20px 20px 0 0',
+                  padding: isMobile ? '1.5rem' : '2rem',
+                  minHeight: '300px',
+                  position: 'relative',
+                  zIndex: 2
+                }}>
+                  {proposalDetails.length === 0 ? (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '3rem 1rem',
+                      color: '#6b7280'
+                    }}>
+                      <div style={{
+                        width: '80px',
+                        height: '80px',
+                        background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 1rem',
+                        fontSize: '2rem'
+                      }}>
+                        📋
+                      </div>
+                      <h4 style={{
+                        color: '#374151',
+                        marginBottom: '0.5rem',
+                        fontSize: '1.2rem',
+                        fontWeight: '600'
+                      }}>
+                        No Proposals Found
+                      </h4>
+                      <p style={{ margin: '0', fontSize: '1rem' }}>
+                        No proposals are currently available on this network.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))',
+                      gap: '1.5rem'
+                    }}>
+                      {proposalDetails.map((proposal, index) => (
+                        <div key={proposal.id} style={{
+                          background: 'white',
+                          borderRadius: '16px',
+                          padding: '1.5rem',
+                          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                          border: '1px solid rgba(102, 126, 234, 0.1)',
+                          transition: 'all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          animation: `slideInUp 0.6s ease-out ${index * 0.1}s both`
+                        }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+                            e.currentTarget.style.boxShadow = '0 20px 40px rgba(102, 126, 234, 0.15)';
+                            e.currentTarget.style.borderColor = '#667eea';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                            e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
+                            e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.1)';
+                          }}>
+
+                          {/* Proposal Header */}
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: '1rem'
+                          }}>
+                            <div style={{
+                              width: '50px',
+                              height: '50px',
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              borderRadius: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: '700',
+                              fontSize: '1.1rem',
+                              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                            }}>
+                              #{proposal.id || index + 1}
+                            </div>
+                            <div style={{
+                              background: proposal.passed
+                                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                                : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                              color: 'white',
+                              padding: '0.4rem 0.8rem',
+                              borderRadius: '20px',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.3rem'
+                            }}>
+                              <span style={{ fontSize: '0.8rem' }}>
+                                {proposal.passed ? '✅' : '⏳'}
+                              </span>
+                              {proposal.passed ? 'Approved' : 'Pending'}
+                            </div>
+                          </div>
+
+                          {/* Project Title */}
+                          <h5 style={{
+                            fontSize: '1.1rem',
+                            fontWeight: '700',
+                            color: '#1f2937',
+                            marginBottom: '0.8rem',
+                            lineHeight: '1.3',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>
+                            {proposal.projectName || `Proposal #${proposal.id || index + 1}`}
+                          </h5>
+
+                          {/* Description */}
+                          <p style={{
+                            color: '#6b7280',
+                            fontSize: '0.9rem',
+                            lineHeight: '1.5',
+                            marginBottom: '1.2rem',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>
+                            {proposal.description || 'No description available for this proposal.'}
+                          </p>
+
+                          {/* Funding Information */}
+                          <div style={{
+                            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+                            borderRadius: '12px',
+                            padding: '1rem',
+                            marginBottom: '1rem'
+                          }}>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr 1fr',
+                              gap: '1rem'
+                            }}>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                  fontSize: '0.75rem',
+                                  color: '#6b7280',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px',
+                                  marginBottom: '0.3rem'
+                                }}>
+                                  Goal
+                                </div>
+                                <div style={{
+                                  fontSize: '1.1rem',
+                                  fontWeight: '700',
+                                  color: '#667eea'
+                                }}>
+                                  {proposal.fundingGoal || '0'} GNJ
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                  fontSize: '0.75rem',
+                                  color: '#6b7280',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px',
+                                  marginBottom: '0.3rem'
+                                }}>
+                                  Invested
+                                </div>
+                                <div style={{
+                                  fontSize: '1.1rem',
+                                  fontWeight: '700',
+                                  color: '#10b981'
+                                }}>
+                                  {proposal.totalInvested || '0'} GNJ
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Button */}
+                          <button style={{
+                            width: '100%',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            padding: '0.8rem 1rem',
+                            fontSize: '0.9rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.5rem'
+                          }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}>
+                            <span>View Details</span>
+                            <span style={{ fontSize: '0.8rem' }}>→</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* View All Button */}
+                  {proposals.length > 4 && (
+                    <div style={{
+                      textAlign: 'center',
+                      marginTop: '2rem',
+                      paddingTop: '2rem',
+                      borderTop: '1px solid rgba(102, 126, 234, 0.1)'
+                    }}>
+                      <button
+                        style={{
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '50px',
+                          padding: '1rem 2rem',
+                          fontSize: '1rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                          boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.5rem'
+                        }}
+                        onClick={() => window.location.href = '/admin/proposals'}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-3px)';
+                          e.currentTarget.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+                        }}
+                      >
+                        <span>View All {proposals.length} Proposals</span>
+                        <span style={{ fontSize: '1.2rem' }}>🚀</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              <style>{`
+                @keyframes slideInUp {
+                  from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                  }
+                  to {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                }
+              `}</style>
 
               {/* Blockchain Information */}
               {currentNetwork && (

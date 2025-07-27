@@ -9,7 +9,7 @@ const SimpleNetworkSwitcher = ({ onNetworkChange }) => {
   // Check current network on component mount
   useEffect(() => {
     checkCurrentNetwork();
-    
+
     // Listen for network changes
     if (window.ethereum) {
       window.ethereum.on('chainChanged', handleChainChanged);
@@ -29,7 +29,7 @@ const SimpleNetworkSwitcher = ({ onNetworkChange }) => {
 
   const checkCurrentNetwork = async () => {
     if (!window.ethereum) return;
-    
+
     try {
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
       const network = getNetworkByChainId(chainId);
@@ -53,11 +53,11 @@ const SimpleNetworkSwitcher = ({ onNetworkChange }) => {
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: network.chainId }],
       });
-      
+
       setCurrentNetwork(network);
       setIsOpen(false);
-      toast.success(`Switched to ${network.chainName}!`);
-      
+      //  toast.success(`Switched to ${network.chainName}!`);
+
       if (onNetworkChange) {
         onNetworkChange(network);
       }
@@ -68,11 +68,11 @@ const SimpleNetworkSwitcher = ({ onNetworkChange }) => {
             method: 'wallet_addEthereumChain',
             params: [network],
           });
-          
+
           setCurrentNetwork(network);
           setIsOpen(false);
           toast.success(`Added ${network.chainName}!`);
-          
+
           if (onNetworkChange) {
             onNetworkChange(network);
           }
@@ -136,7 +136,7 @@ const SimpleNetworkSwitcher = ({ onNetworkChange }) => {
           >
             {networksList.map((network) => {
               const isActive = currentNetwork?.chainId === network.chainId;
-              
+
               return (
                 <button
                   key={network.chainId}
@@ -178,7 +178,7 @@ const SimpleNetworkSwitcher = ({ onNetworkChange }) => {
               );
             })}
           </div>
-          
+
           {/* Backdrop to close dropdown */}
           <div
             style={{

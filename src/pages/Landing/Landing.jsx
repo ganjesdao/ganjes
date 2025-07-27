@@ -100,7 +100,7 @@ function Landing() {
   // Initialize contract
   const initializeContract = async (contractAddr) => {
     if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-      toast.warning("⚠️ Contract not deployed on this network yet!");
+
       setDaoContract(null);
       setProposalDetails([]);
       setIsLoading(false);
@@ -119,8 +119,6 @@ function Landing() {
       const contract = new ethers.Contract(contractAddr, daoABI, provider); // Use provider for read-only
       setDaoContract(contract);
 
-
-      toast.success(`✅ Connected to contract on ${currentNetwork?.chainName}`);
     } catch (error) {
       console.error("Init error:", error.message);
       if (error.message.includes("could not detect network")) {
@@ -141,17 +139,17 @@ function Landing() {
 
 
   useEffect(() => {
-    console.log('Current Network Data:', daoContract, currentNetwork);
     if (daoContract && currentNetwork) {
-      console.log('Fetching proposals...', daoContract);
       const fetchProposalsOnNetworkChange = async () => {
         try {
+          setIsLoading(true);
+
+          // Fetch stats
           const totalProposals = await daoContract.getTotalProposals();
           const [approvedCount] = await daoContract.getApprovedProposals();
           const [runningCount] = await daoContract.getRunningProposals();
           const totalFunded = ethers.formatEther(await daoContract.getTotalFundedAmount());
           const activeInvestors = await daoContract.getActiveInvestorCount();
-
 
           setStats({
             totalProposals: totalProposals.toString(),
@@ -161,6 +159,38 @@ function Landing() {
             activeInvestors: activeInvestors.toString(),
           });
 
+          // Fetch proposal details
+          try {
+            const proposalIds = await daoContract.getAllProposalIds();
+            const proposalData = [];
+
+            for (const id of proposalIds) {
+              try {
+                const basic = await daoContract.getProposalBasicDetails(id);
+                const voting = await daoContract.getProposalVotingDetails(id);
+
+                proposalData.push({
+                  id: basic.id.toString(),
+                  projectName: basic.projectName,
+                  projectUrl: basic.projectUrl,
+                  description: basic.description,
+                  fundingGoal: ethers.formatEther(basic.fundingGoal),
+                  totalInvested: ethers.formatEther(voting.totalInvested),
+                  endTime: new Date(Number(basic.endTime) * 1000).toLocaleString(),
+                  passed: basic.passed,
+                });
+              } catch (proposalError) {
+                console.warn(`Failed to fetch proposal ${id}:`, proposalError);
+              }
+            }
+
+            setProposalDetails(proposalData);
+            console.log('Proposals loaded:', proposalData.length);
+          } catch (proposalError) {
+            console.warn('Failed to fetch proposals:', proposalError);
+            setProposalDetails([]);
+          }
+
           console.log('Stats:', {
             totalProposals: totalProposals.toString(),
             approvedProposals: approvedCount.toString(),
@@ -169,14 +199,40 @@ function Landing() {
             activeInvestors: activeInvestors.toString(),
           });
         } catch (err) {
-          console.error('Error fetching analytics stats:', err);
-          toast.error('Failed to fetch analytics stats.');
+          console.error('Error fetching data:', err);
+          setStats({
+            totalProposals: 0,
+            approvedProposals: 0,
+            runningProposals: 0,
+            totalFunded: 0,
+            activeInvestors: 0,
+          });
+          setProposalDetails([]);
+        } finally {
+          setIsLoading(false);
         }
       };
       fetchProposalsOnNetworkChange();
+    } else {
+      // Reset data when no contract
+      setStats({
+        totalProposals: 0,
+        approvedProposals: 0,
+        runningProposals: 0,
+        totalFunded: 0,
+        activeInvestors: 0,
+      });
+      setProposalDetails([]);
+      setIsLoading(false);
     }
   }, [daoContract, currentNetwork]);
 
+  // Navigate to proposal details
+  const proposalData = (proposalId) => {
+    console.log('Navigating to proposal:', proposalId);
+    localStorage.setItem("proposalId", proposalId);
+    navigate('/proposal');
+  };
 
   return (
     <>
@@ -411,7 +467,7 @@ function Landing() {
         </div>
 
         {/* Custom CSS Animations */}
-        <style jsx>{`
+        <style >{`
           @keyframes float {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-20px); }
@@ -630,6 +686,176 @@ function Landing() {
               Get Started Today
             </button>
           </div>
+        </div>
+      </section>
+
+      {/* Active Proposals Section */}
+      <section id="proposals" className="py-5 bg-light">
+        <div className="container">
+          <div className="text-center mb-5">
+            <h2 className="display-5 fw-bold">Active Proposals</h2>
+            <p className="lead text-muted">Discover innovative projects seeking funding through our DAO</p>
+            {currentNetwork && (
+              <small className="text-muted">
+                <i className="fas fa-network-wired me-1"></i>
+                Connected to {currentNetwork.chainName}
+              </small>
+            )}
+          </div>
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading proposals...</span>
+              </div>
+              <p className="mt-3 text-muted">Loading proposals from blockchain...</p>
+            </div>
+          )}
+
+          {/* No Network Connected */}
+          {!currentNetwork && !isLoading && (
+            <div className="text-center py-5">
+              <div className="mb-4">
+                <i className="fas fa-plug fa-4x text-muted opacity-50"></i>
+              </div>
+              <h4 className="text-muted">No Network Connected</h4>
+              <p className="text-muted mb-4">Please connect to a network to view proposals</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="btn btn-outline-primary"
+              >
+                <i className="fas fa-refresh me-2"></i>
+                Refresh Page
+              </button>
+            </div>
+          )}
+
+          {/* No Proposals Found */}
+          {currentNetwork && !isLoading && proposalDetails.length === 0 && (
+            <div className="text-center py-5">
+              <div className="mb-4">
+                <i className="fas fa-inbox fa-4x text-muted opacity-50"></i>
+              </div>
+              <h4 className="text-muted">No Proposals Found</h4>
+              <p className="text-muted mb-4">
+                No proposals found on <strong>{currentNetwork.chainName}</strong> network.
+                <br />
+                Be the first to submit a proposal or try switching to a different network.
+              </p>
+              <div className="d-flex justify-content-center gap-3">
+                <button
+                  onClick={navigateToDashboard}
+                  className="btn btn-primary"
+                >
+                  <i className="fas fa-plus me-2"></i>
+                  Submit Proposal
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="btn btn-outline-secondary"
+                >
+                  <i className="fas fa-refresh me-2"></i>
+                  Refresh
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Proposals Grid */}
+          {!isLoading && proposalDetails.length > 0 && (
+            <div className="row g-4">
+              {proposalDetails.map((proposal) => (
+                <div key={proposal.id} className="col-md-6 col-lg-4">
+                  <div className="card h-100 shadow-sm border-0 hover-card" style={{
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer'
+                  }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-5px)';
+                      e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+                    }}>
+                    <div className="card-body">
+                      <div className="row">
+                        <div className="col-9 align-self-center">
+                          <h5 className="card-title mt-2 fw-bold text-dark">
+                            {proposal.projectName}
+                          </h5>
+                        </div>
+                        <div className="col-3 text-end">
+                          <img
+                            className="bg-warning bg-opacity-10 rounded-circle p-1"
+                            src="assets/image/logo/light-log.png"
+                            width={35}
+                            height={35}
+                            alt="Ganjes DAO"
+                            style={{ objectFit: 'contain' }}
+                          />
+                        </div>
+                        <div className="col-12 mt-3">
+                          <p className="text-muted small mb-3" style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>
+                            {proposal.description}
+                          </p>
+                        </div>
+
+                        {/* Proposal Stats */}
+                        <div className="col-12 mb-3">
+                          <div className="row g-2">
+                            <div className="col-6">
+                              <small className="text-muted d-block">Funding Goal</small>
+                              <strong className="text-primary">{proposal.fundingGoal} ETH</strong>
+                            </div>
+                            <div className="col-6">
+                              <small className="text-muted d-block">Invested</small>
+                              <strong className="text-success">{proposal.totalInvested} ETH</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="col-8 mt-3">
+                          <span className={`badge ${proposal.passed ? 'bg-success' : 'bg-warning'} bg-opacity-10 ${proposal.passed ? 'text-success' : 'text-warning'} px-3 py-2`}>
+                            <i className={`fas ${proposal.passed ? 'fa-check-circle' : 'fa-clock'} me-1`}></i>
+                            {proposal.passed ? "Approved" : "Pending"}
+                          </span>
+                        </div>
+                        <div className="col-4 mt-3 text-end">
+                          <button
+                            onClick={() => proposalData(proposal.id)}
+                            className="btn btn-outline-primary btn-sm rounded-pill"
+                            title="View Details"
+                          >
+                            <i className="fas fa-arrow-right"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Show More Button */}
+          {!isLoading && proposalDetails.length > 0 && (
+            <div className="text-center mt-5">
+              <button
+                onClick={navigateToDashboard}
+                className="btn btn-outline-primary btn-lg"
+              >
+                <i className="fas fa-eye me-2"></i>
+                View All Proposals
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

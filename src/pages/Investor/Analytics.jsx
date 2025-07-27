@@ -53,7 +53,7 @@ function Analytics() {
     // Initialize contract and fetch proposals
     const initializeContract = async (contractAddr) => {
         if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-            toast.warning("⚠️ Contract not deployed on this network yet!");
+
             setDaoContract(null);
             setProposalDetails([]);
             return;
@@ -77,7 +77,6 @@ function Analytics() {
             const ids = await contract.getAllProposalIds();
             await getProposalDetails(ids, contract);
 
-            toast.success(`✅ Connected to contract on ${currentNetwork?.chainName}`);
         } catch (error) {
             console.error("Init error:", error.message);
 
@@ -198,7 +197,7 @@ function Analytics() {
 
             const validDetails = details.filter(detail => detail !== null);
             setProposalDetails(validDetails);
-            
+
             // Fetch analytics data
             await fetchAnalyticsData(contract);
 
@@ -266,7 +265,7 @@ function Analytics() {
 
                                                             </div>
                                                         </div>
-                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -290,7 +289,7 @@ function Analytics() {
 
                                                             </div>
                                                         </div>
-                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -314,7 +313,7 @@ function Analytics() {
 
                                                             </div>
                                                         </div>
-                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -338,7 +337,7 @@ function Analytics() {
 
                                                             </div>
                                                         </div>
-                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -455,21 +454,21 @@ function Analytics() {
                                                                             </td>
                                                                             <td className="align-middle text-center">
                                                                                 <div className="btn-group" role="group">
-                                                                                    <button 
+                                                                                    <button
                                                                                         className="btn btn-sm btn-outline-primary"
                                                                                         style={{ borderRadius: '20px 0 0 20px' }}
                                                                                         title="Vote"
                                                                                     >
                                                                                         <i className="fas fa-vote-yea"></i>
                                                                                     </button>
-                                                                                    <button 
+                                                                                    <button
                                                                                         className="btn btn-sm btn-outline-info"
                                                                                         style={{ borderRadius: '0' }}
                                                                                         title="View Details"
                                                                                     >
                                                                                         <i className="fas fa-eye"></i>
                                                                                     </button>
-                                                                                    <button 
+                                                                                    <button
                                                                                         className="btn btn-sm btn-outline-secondary"
                                                                                         style={{ borderRadius: '0 20px 20px 0' }}
                                                                                         title="More Options"
@@ -490,7 +489,7 @@ function Analytics() {
                                                         <div className="row align-items-center">
                                                             <div className="col-md-6">
                                                                 <small className="text-muted">
-                                                                    Showing {proposalDetails.length} proposal{proposalDetails.length !== 1 ? 's' : ''} 
+                                                                    Showing {proposalDetails.length} proposal{proposalDetails.length !== 1 ? 's' : ''}
                                                                     from {currentNetwork?.chainName || 'Unknown Network'}
                                                                 </small>
                                                             </div>

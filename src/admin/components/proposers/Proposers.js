@@ -4,19 +4,29 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import AdminPageLayout from '../common/AdminPageLayout';
 import PageHeader from '../common/PageHeader';
 import SearchBar from '../common/SearchBar';
 import MobileTable from '../common/MobileTable';
+import { useDAOData } from '../../hooks/useDAOData';
 
-const Proposers = ({ isMobile }) => {
-  const [proposers, setProposers] = useState([]);
-  const [loading, setLoading] = useState(false);
+const Proposers = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const { currentNetwork } = useSelector(state => state.auth);
 
-  // Mock data for proposers
-  const mockProposers = [
+  // Use real DAO data
+  const {
+    proposers,
+    isLoading: loading,
+    error,
+    refreshData
+  } = useDAOData(currentNetwork, true);
+  // Fallback data for when real data is not available
+  const fallbackProposers = [
     {
       id: 1,
+      address: '0x1234...5678',
       name: 'John Doe',
       email: 'john@example.com',
       walletAddress: '0x1234...5678',
@@ -27,6 +37,7 @@ const Proposers = ({ isMobile }) => {
     },
     {
       id: 2,
+      address: '0x8765...4321',
       name: 'Jane Smith',
       email: 'jane@example.com',
       walletAddress: '0x8765...4321',
@@ -34,40 +45,35 @@ const Proposers = ({ isMobile }) => {
       approvedProposals: 4,
       status: 'active',
       joinDate: '2024-02-20'
-    },
-    {
-      id: 3,
-      name: 'Bob Wilson',
-      email: 'bob@example.com',
-      walletAddress: '0x9876...1234',
-      totalProposals: 1,
-      approvedProposals: 0,
-      status: 'pending',
-      joinDate: '2024-07-10'
     }
   ];
 
-  useEffect(() => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setProposers(mockProposers);
-      setLoading(false);
-    }, 1000);
-  }, []);
+  // Use real data if available, otherwise fallback
+  const displayProposers = proposers && proposers.length > 0
+    ? proposers.map((proposer, index) => ({
+      ...proposer,
+      id: index + 1,
+      name: `Proposer ${index + 1}`,
+      email: `proposer${index + 1}@dao.com`,
+      walletAddress: proposer.address,
+      status: proposer.totalProposals > 0 ? 'active' : 'pending',
+      joinDate: new Date().toISOString().split('T')[0]
+    }))
+    : fallbackProposers;
 
-  const filteredProposers = proposers.filter(proposer =>
-    proposer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    proposer.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProposers = displayProposers.filter(proposer =>
+    (proposer.name && proposer.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (proposer.email && proposer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (proposer.address && proposer.address.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, isMobile = false) => {
     const colors = {
       active: '#10b981',
       pending: '#f59e0b',
       suspended: '#ef4444'
     };
-    
+
     return (
       <span style={{
         padding: '0.25rem 0.75rem',
@@ -86,7 +92,7 @@ const Proposers = ({ isMobile }) => {
     console.log(`${action} action for proposer:`, row);
   };
 
-  const tableColumns = [
+  const getTableColumns = (isMobile = false) => [
     {
       key: 'proposer',
       label: 'Proposer',
@@ -159,13 +165,13 @@ const Proposers = ({ isMobile }) => {
         <div style={{
           fontSize: isMobile ? '0.8rem' : '0.875rem',
           fontWeight: '500',
-          color: row.totalProposals > 0 
-            ? (row.approvedProposals / row.totalProposals) >= 0.7 
-              ? '#10b981' 
+          color: row.totalProposals > 0
+            ? (row.approvedProposals / row.totalProposals) >= 0.7
+              ? '#10b981'
               : '#f59e0b'
             : '#6b7280'
         }}>
-          {row.totalProposals > 0 
+          {row.totalProposals > 0
             ? `${Math.round((row.approvedProposals / row.totalProposals) * 100)}%`
             : 'N/A'
           }
@@ -176,14 +182,9 @@ const Proposers = ({ isMobile }) => {
       key: 'status',
       label: 'Status',
       align: 'center',
-      render: (value, row) => getStatusBadge(row.status)
+      render: (value, row) => getStatusBadge(row.status, isMobile)
     }
   ];
-
-  // Hide wallet column on mobile
-  const visibleColumns = isMobile 
-    ? tableColumns.filter(col => col.key !== 'wallet')
-    : tableColumns;
 
   if (loading) {
     return (
@@ -214,41 +215,76 @@ const Proposers = ({ isMobile }) => {
   }
 
   return (
-    <div>
-      <PageHeader
-        title="Proposers Management"
-        description="Manage project proposers and their proposal status"
-        icon="👨‍💼"
-        totalCount={proposers.length}
-        showStats={true}
-        isMobile={isMobile}
-      >
-        <SearchBar
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          placeholder="Search proposers..."
-          isMobile={isMobile}
-        />
-      </PageHeader>
+    <AdminPageLayout>
+      {({ isMobile }) => (
+        <>
+          <PageHeader
+            title="Proposers Management"
+            description="Manage project proposers and their proposal status"
+            icon="👨‍💼"
+            totalCount={displayProposers.length}
+            showStats={true}
+            isMobile={isMobile}
+          >
+            <SearchBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              placeholder="Search proposers..."
+              isMobile={isMobile}
+            />
+          </PageHeader>
 
-      <MobileTable
-        data={filteredProposers}
-        columns={visibleColumns}
-        isMobile={isMobile}
-        onRowAction={handleRowAction}
-      />
+          <MobileTable
+            data={filteredProposers}
+            columns={isMobile
+              ? getTableColumns(isMobile).filter(col => col.key !== 'wallet')
+              : getTableColumns(isMobile)
+            }
+            isMobile={isMobile}
+            onRowAction={handleRowAction}
+          />
 
-      {filteredProposers.length === 0 && (
-        <div style={{
-          textAlign: 'center',
-          padding: '3rem',
-          color: '#6b7280'
-        }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
-          <p>No proposers found matching your search.</p>
-        </div>
+          {error && (
+            <div style={{
+              textAlign: 'center',
+              padding: '2rem',
+              backgroundColor: '#fef2f2',
+              borderRadius: '8px',
+              border: '1px solid #fecaca',
+              marginBottom: '1rem'
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⚠️</div>
+              <p style={{ color: '#dc2626', fontWeight: '500' }}>{error}</p>
+              <button
+                onClick={refreshData}
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!error && filteredProposers.length === 0 && (
+            <div style={{
+              textAlign: 'center',
+              padding: '3rem',
+              color: '#6b7280'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
+              <p>No proposers found matching your search.</p>
+            </div>
+          )}
+        </>
       )}
-    </div>
+    </AdminPageLayout>
   );
 };
 

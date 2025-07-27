@@ -14,533 +14,530 @@ import { FaEye, FaVoteYea, FaCoins, FaThumbsUp, FaThumbsDown, FaClock, FaUser, F
 
 
 function Proposal() {
-    const [walletAddress, setWalletAddress] = useState(null);
-    const [fundingGoal, setFundingGoal] = useState(0);
-    const [totalInvested, setTotalInvested] = useState(0);
-    const navigate = useNavigate();
-    const [daoContract, setDaoContract] = useState(null);
-    const [proposalDetails, setProposalDetails] = useState([]);
-    const [isLoading, setIsLoading] = useState(true); // For blockchain data
-    const [contractAddress, setContractAddress] = useState("");
-    const [currentNetwork, setCurrentNetwork] = useState(null);
-    const pId = localStorage.getItem('proposalId');
-    const [showVoteModal, setShowVoteModal] = useState(false);
-    const [voteAmount, setVoteAmount] = useState(15);
-    const tokenContract = process.env.REACT_APP_TOKEN_ADDRESS;
-    const [loading, setLoading] = useState(false);
-     const [signer, setSigner] = useState(null);
-     const [support, setSupport] = useState(true);
+  const [walletAddress, setWalletAddress] = useState(null);
+  const [fundingGoal, setFundingGoal] = useState(0);
+  const [totalInvested, setTotalInvested] = useState(0);
+  const navigate = useNavigate();
+  const [daoContract, setDaoContract] = useState(null);
+  const [proposalDetails, setProposalDetails] = useState([]);
+  const [isLoading, setIsLoading] = useState(true); // For blockchain data
+  const [contractAddress, setContractAddress] = useState("");
+  const [currentNetwork, setCurrentNetwork] = useState(null);
+  const pId = localStorage.getItem('proposalId');
+  const [showVoteModal, setShowVoteModal] = useState(false);
+  const [voteAmount, setVoteAmount] = useState(15);
+  const tokenContract = process.env.REACT_APP_TOKEN_ADDRESS;
+  const [loading, setLoading] = useState(false);
+  const [signer, setSigner] = useState(null);
+  const [support, setSupport] = useState(true);
 
-     const tokenABI = [
-  "function approve(address spender, uint256 amount) external returns (bool)",
-  "function balanceOf(address account) external view returns (uint256)",
-  "function transfer(address to, uint256 amount) external returns (bool)",
-  "function transferFrom(address from, address to, uint256 amount) external returns (bool)"
-];
+  const tokenABI = [
+    "function approve(address spender, uint256 amount) external returns (bool)",
+    "function balanceOf(address account) external view returns (uint256)",
+    "function transfer(address to, uint256 amount) external returns (bool)",
+    "function transferFrom(address from, address to, uint256 amount) external returns (bool)"
+  ];
 
 
-    // Wallet connection check
-    useEffect(() => {
-        const checkWalletConnected = async () => {
-            if (!window.ethereum) return;
+  // Wallet connection check
+  useEffect(() => {
+    const checkWalletConnected = async () => {
+      if (!window.ethereum) return;
 
-            try {
-                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                if (accounts.length > 0) {
-                    setWalletAddress(accounts[0]);
-                }
-            } catch (error) {
-                console.error("Failed to check connected accounts:", error);
-            }
-        };
-
-        checkWalletConnected();
-
-        // Listen for account changes
-        window.ethereum?.on('accountsChanged', (accounts) => {
-            if (accounts.length > 0) {
-                setWalletAddress(accounts[0]);
-            } else {
-                setWalletAddress(null);
-            }
-        });
-
-        return () => {
-            window.ethereum?.removeListener('accountsChanged', () => { });
-        };
-    }, []);
-
-    // Connect wallet
-    const connectWallet = async () => {
-        if (!window.ethereum) {
-            toast.error("MetaMask not found. Please install it.");
-            return;
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
         }
+      } catch (error) {
+        console.error("Failed to check connected accounts:", error);
+      }
+    };
 
+    checkWalletConnected();
+
+    // Listen for account changes
+    window.ethereum?.on('accountsChanged', (accounts) => {
+      if (accounts.length > 0) {
+        setWalletAddress(accounts[0]);
+      } else {
+        setWalletAddress(null);
+      }
+    });
+
+    return () => {
+      window.ethereum?.removeListener('accountsChanged', () => { });
+    };
+  }, []);
+
+  // Connect wallet
+  const connectWallet = async () => {
+    if (!window.ethereum) {
+      toast.error("MetaMask not found. Please install it.");
+      return;
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts',
+      });
+      setWalletAddress(accounts[0]);
+    } catch (err) {
+      console.error("Wallet connection failed:", err);
+      toast.error("Failed to connect wallet!");
+    }
+  };
+
+  // Navigate to dashboard
+  const navigateToDashboard = () => {
+    if (walletAddress) {
+      navigate('/dashboard');
+    } else {
+      connectWallet();
+    }
+  };
+
+
+  // Handle network change
+  const handleNetworkChange = (network) => {
+    setCurrentNetwork(network);
+    if (network) {
+      const address = getContractAddress(network.chainId);
+      setContractAddress(address);
+      console.log(`Network changed to: ${network.chainName}`);
+      console.log(`Contract address: ${address}`);
+
+      // Initialize contract with new network
+      initializeContract(address);
+    } else {
+      setContractAddress("");
+      setDaoContract(null);
+      setProposalDetails([]);
+    }
+  };
+
+  // Initialize contract
+  const initializeContract = async (contractAddr) => {
+    if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
+
+      setDaoContract(null);
+      setProposalDetails([]);
+      return;
+    }
+
+    if (typeof window.ethereum === 'undefined') {
+      toast.error("Please install MetaMask!");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      setSigner(signer);
+
+      const contract = new ethers.Contract(contractAddr, daoABI, signer);
+      setDaoContract(contract);
+
+    } catch (error) {
+      console.error("Init error:", error.message);
+
+      if (error.message.includes("could not detect network")) {
+        toast.error("❌ Failed to connect to the network. Please check your wallet connection.");
+      } else if (error.message.includes("user rejected")) {
+        toast.error("❌ Connection rejected by user.");
+      } else {
+        toast.error(`❌ Failed to initialize contract: ${error.message}`);
+      }
+
+      setDaoContract(null);
+      setProposalDetails([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch proposal details
+  const fetchProposalDetails = async (id, contract) => {
+    try {
+      setIsLoading(true);
+      const proposalData = [];
+      const basic = await contract.proposals(id);
+
+
+      console.log('Proposal Data', basic);
+
+      setProposalDetails(basic);
+      const fundingGoal = ethers.formatUnits(basic.fundingGoal, 18);
+      const endTime = new Date(Number(basic.endTime) * 1000).toLocaleString();
+      const totalInvested = ethers.formatUnits(basic.totalInvested, 18); // Convert timestamp to date string
+      setFundingGoal(fundingGoal);
+      setTotalInvested(totalInvested);
+      setIsLoading(false);
+
+    } catch (error) {
+      console.error("Error fetching proposals:", error);
+      toast.error("Failed to fetch proposals!");
+      setProposalDetails([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Re-fetch proposals on network change
+  useEffect(() => {
+    if (daoContract && currentNetwork) {
+      const fetchProposalsOnNetworkChange = async () => {
         try {
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const accounts = await window.ethereum.request({
-                method: 'eth_requestAccounts',
-            });
-            setWalletAddress(accounts[0]);
-        } catch (err) {
-            console.error("Wallet connection failed:", err);
-            toast.error("Failed to connect wallet!");
-        }
-    };
-
-    // Navigate to dashboard
-    const navigateToDashboard = () => {
-        if (walletAddress) {
-            navigate('/dashboard');
-        } else {
-            connectWallet();
-        }
-    };
-
-
-    // Handle network change
-    const handleNetworkChange = (network) => {
-        setCurrentNetwork(network);
-        if (network) {
-            const address = getContractAddress(network.chainId);
-            setContractAddress(address);
-            console.log(`Network changed to: ${network.chainName}`);
-            console.log(`Contract address: ${address}`);
-
-            // Initialize contract with new network
-            initializeContract(address);
-        } else {
-            setContractAddress("");
-            setDaoContract(null);
-            setProposalDetails([]);
-        }
-    };
-
-    // Initialize contract
-    const initializeContract = async (contractAddr) => {
-       if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-         toast.warning("⚠️ Contract not deployed on this network yet!");
-         setDaoContract(null);
-         setProposalDetails([]);
-         return;
-       }
-   
-       if (typeof window.ethereum === 'undefined') {
-         toast.error("Please install MetaMask!");
-         return;
-       }
-   
-       try {
-         setLoading(true);
-         const provider = new ethers.BrowserProvider(window.ethereum);
-         await provider.send("eth_requestAccounts", []);
-         const signer = await provider.getSigner();
-         setSigner(signer);
-   
-         const contract = new ethers.Contract(contractAddr, daoABI, signer);
-         setDaoContract(contract);
-   
-         
-         toast.success(`✅ Connected to contract on ${currentNetwork?.chainName}`);
-       } catch (error) {
-         console.error("Init error:", error.message);
-         
-         if (error.message.includes("could not detect network")) {
-           toast.error("❌ Failed to connect to the network. Please check your wallet connection.");
-         } else if (error.message.includes("user rejected")) {
-           toast.error("❌ Connection rejected by user.");
-         } else {
-           toast.error(`❌ Failed to initialize contract: ${error.message}`);
-         }
-         
-         setDaoContract(null);
-         setProposalDetails([]);
-       } finally {
-         setLoading(false);
-       }
-     };
-
-    // Fetch proposal details
-    const fetchProposalDetails = async (id, contract) => {
-        try {
-            setIsLoading(true);
-            const proposalData = [];
-            const basic = await contract.proposals(id);
-           
-
-            console.log('Proposal Data', basic);
-
-            setProposalDetails(basic);
-            const fundingGoal = ethers.formatUnits(basic.fundingGoal, 18);
-            const endTime = new Date(Number(basic.endTime) * 1000).toLocaleString();
-            const totalInvested = ethers.formatUnits(basic.totalInvested, 18); // Convert timestamp to date string
-            setFundingGoal(fundingGoal);
-            setTotalInvested(totalInvested);
-            setIsLoading(false);
-
+          setIsLoading(true);
+          const ids = await daoContract.getAllProposalIds();
+          await fetchProposalDetails(pId, daoContract);
         } catch (error) {
-            console.error("Error fetching proposals:", error);
-            toast.error("Failed to fetch proposals!");
-            setProposalDetails([]);
+          console.error("Error fetching proposals on network change:", error);
+          setProposalDetails([]);
         } finally {
-            setIsLoading(false);
+          setIsLoading(false);
         }
-    };
-
-    // Re-fetch proposals on network change
-    useEffect(() => {
-        if (daoContract && currentNetwork) {
-            const fetchProposalsOnNetworkChange = async () => {
-                try {
-                    setIsLoading(true);
-                    const ids = await daoContract.getAllProposalIds();
-                    await fetchProposalDetails(pId, daoContract);
-                } catch (error) {
-                    console.error("Error fetching proposals on network change:", error);
-                    toast.error("Failed to refresh proposals!");
-                    setProposalDetails([]);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-            fetchProposalsOnNetworkChange();
-        }
-    }, [daoContract, currentNetwork]);
+      };
+      fetchProposalsOnNetworkChange();
+    }
+  }, [daoContract, currentNetwork]);
 
 
-     const closeVoteModal = () => {
+  const closeVoteModal = () => {
     setShowVoteModal(false);
     setVoteAmount(15);
   };
 
   const handleVoteSubmit = () => {
-      if (pId && voteAmount > 0) {
-        handleVote(pId, voteAmount);
+    if (pId && voteAmount > 0) {
+      handleVote(pId, voteAmount);
+    } else {
+      toast.error("Please enter a valid vote amount");
+    }
+  };
+
+  const handleVote = async (proposalId, amount) => {
+    console.log('Proposal ID', proposalId, 'Amount:', amount);
+    if (!contractAddress || !tokenContract || !daoContract) {
+      toast.error("Contract not initialized properly");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      toast.info("Approving tokens...");
+
+      // Convert amount to string for consistency
+      const amountStr = amount.toString();
+
+      await approveTokens(amountStr);
+
+      toast.info("Casting vote...");
+      const tx = await daoContract.vote(proposalId, support, ethers.parseEther(amountStr));
+      await tx.wait();
+
+      toast.success('Vote cast successfully!');
+      closeVoteModal();
+
+
+    } catch (error) {
+      console.error('Error voting:', error);
+      if (error.message.includes("insufficient allowance")) {
+        toast.error('Insufficient token allowance. Please approve tokens first.');
+      } else if (error.message.includes("insufficient balance")) {
+        toast.error('Insufficient token balance.');
+      } else if (error.message.includes("user rejected")) {
+        toast.error('Transaction rejected by user.');
       } else {
-        toast.error("Please enter a valid vote amount");
+        toast.error('Failed to vote. Check proposal ID, investment amount, and allowance.');
       }
-    };
-
-    const handleVote = async (proposalId, amount) => {
-        console.log('Proposal ID', proposalId, 'Amount:', amount);
-        if (!contractAddress || !tokenContract || !daoContract) {
-          toast.error("Contract not initialized properly");
-          return;
-        }
-        
-        try {
-          setLoading(true);
-          toast.info("Approving tokens...");
-          
-          // Convert amount to string for consistency
-          const amountStr = amount.toString();
-          
-          await approveTokens(amountStr);
-          
-          toast.info("Casting vote...");
-          const tx = await daoContract.vote(proposalId, support, ethers.parseEther(amountStr));
-          await tx.wait();
-          
-          toast.success('Vote cast successfully!');
-          closeVoteModal();
-          
-          
-        } catch (error) {
-          console.error('Error voting:', error);
-          if (error.message.includes("insufficient allowance")) {
-            toast.error('Insufficient token allowance. Please approve tokens first.');
-          } else if (error.message.includes("insufficient balance")) {
-            toast.error('Insufficient token balance.');
-          } else if (error.message.includes("user rejected")) {
-            toast.error('Transaction rejected by user.');
-          } else {
-            toast.error('Failed to vote. Check proposal ID, investment amount, and allowance.');
-          }
-        } finally {
-          setLoading(false);
-        }
-      };
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
-       const approveTokens = async (amount) => {
-          if (!tokenContract || !signer) {
-            toast.error("Token contract or signer not initialized");
-            return;
-          }
-          
-          try {
-            // Create token contract instance using the address and ABI
-            const tokenContractInstance = new ethers.Contract(tokenContract, tokenABI, signer);
-            
-            const tx = await tokenContractInstance.approve(contractAddress, ethers.parseEther(amount));
-            await tx.wait();
-            
-            toast.success(`Approved ${amount} tokens for DAO contract!`);
-          } catch (error) {
-            console.error('Error approving tokens:', error);
-            if (error.message.includes("user rejected")) {
-              toast.error('Token approval rejected by user.');
-            } else {
-              toast.error('Failed to approve tokens. Check balance and try again.');
-            }
-            throw error; // Re-throw to handle in voting function
-          }
-        };
+  const approveTokens = async (amount) => {
+    if (!tokenContract || !signer) {
+      toast.error("Token contract or signer not initialized");
+      return;
+    }
+
+    try {
+      // Create token contract instance using the address and ABI
+      const tokenContractInstance = new ethers.Contract(tokenContract, tokenABI, signer);
+
+      const tx = await tokenContractInstance.approve(contractAddress, ethers.parseEther(amount));
+      await tx.wait();
+
+      toast.success(`Approved ${amount} tokens for DAO contract!`);
+    } catch (error) {
+      console.error('Error approving tokens:', error);
+      if (error.message.includes("user rejected")) {
+        toast.error('Token approval rejected by user.');
+      } else {
+        toast.error('Failed to approve tokens. Check balance and try again.');
+      }
+      throw error; // Re-throw to handle in voting function
+    }
+  };
 
 
-        const voteAgainsts = () => {
-        setSupport(false);
-        setVoteAmount(1)
-      };
-    return (
-        <>
-            {/* Navigation */}
-            <Header onNetworkChange={handleNetworkChange} />
-            <div className="proposal-container">
-                <div className="container-fluid px-3 px-lg-5">
-                    {/* Stats Section */}
-                    <section className="py-4 mt-4">
-                         {isLoading ? (
-                      <div className="text-center my-5">
-                        <div className="spinner-border text-primary" role="status" style={{ width: '4rem', height: '4rem' }}>
-                          <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <p className="mt-3 text-muted">Fetching proposals from blockchain...</p>
-                      </div>
-                    ):(
-                        <div className="container-fluid">
-                            {/* Main Proposal Card */}
-                            <div className="card proposal-card shadow-lg border-0 mb-4 mt-5">
-                                {/* Header Section */}
-                                <div className="card-header gradient-header text-white py-4">
-                                    <div className="row align-items-center">
-                                        <div className="col-md-8 col-12">
-                                            <h3 className="card-title mb-2 fw-bold">
-                                                <FaChartLine className="me-2 floating-icon" />
-                                                {proposalDetails.projectName}
-                                            </h3>
-                                            <p className="mb-0 opacity-75">
-                                                Proposal ID: #{pId}
-                                            </p>
-                                        </div>
-                                        <div className="col-md-4 col-12 text-md-end text-center mt-3 mt-md-0">
-                                            <span className={`badge ${proposalDetails.executed ? 'bg-success' : 'bg-warning'} rounded-pill px-4 py-2`} style={{ fontSize: '0.9rem' }}>
-                                                {proposalDetails.executed ? (
-                                                    <><FaCheckCircle className="me-1" /> Executed</>
-                                                ) : (
-                                                    <><FaClock className="me-1" /> Pending</>
-                                                )}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="card-body p-4">
-                                    <div className="row">
-                                        {/* Project Image */}
-                                        <div className="col-lg-4 col-md-5 col-12 mb-4 mb-md-0">
-                                            <div className="position-relative">
-                                                <img 
-                                                    className="w-100 project-image shadow-sm" 
-                                                    src='assets/image/Landing/canabies-logo.avif' 
-                                                    alt="Project Logo"
-                                                    style={{ objectFit: 'cover', height: '250px' }}
-                                                />
-                                                <div className="position-absolute top-0 start-0 p-2">
-                                                    <div className="bg-white rounded-circle p-2 shadow icon-circle">
-                                                        <FaVoteYea className="text-primary" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Project Details */}
-                                        <div className="col-lg-8 col-md-7 col-12">
-                                            {/* Description */}
-                                            <div className="mb-4">
-                                                <h5 className="text-primary mb-3">
-                                                    <FaEye className="me-2" />
-                                                    Project Description
-                                                </h5>
-                                                <p className="text-muted lh-lg text-truncate-3">
-                                                    {proposalDetails.description}
-                                                </p>
-                                            </div>
-
-                                            {/* Project URL */}
-                                            <div className="mb-4">
-                                                <h6 className="text-dark mb-2">Project URL</h6>
-                                                <a 
-                                                    className="btn btn-outline-primary btn-sm rounded-pill px-3" 
-                                                    href={proposalDetails.projectUrl} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                >
-                                                    <FaExternalLinkAlt className="me-1" /> View Project
-                                                </a>
-                                            </div>
-
-                                            {/* Voting Stats */}
-                                            <div className="mb-4">
-                                                <h6 className="text-dark mb-3">Voting Statistics</h6>
-                                                <div className="row">
-                                                    <div className="col-md-6 col-12 mb-2">
-                                                        <div className="stats-card d-flex align-items-center p-3">
-                                                            <div className="bg-success rounded-circle p-2 me-3 icon-circle">
-                                                                <FaThumbsUp className="text-white" />
-                                                            </div>
-                                                            <div>
-                                                                <div className="fw-bold text-success">{proposalDetails.votersFor}</div>
-                                                                <small className="text-muted">Votes For</small>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-md-6 col-12 mb-2">
-                                                        <div className="stats-card d-flex align-items-center p-3">
-                                                            <div className="bg-danger rounded-circle p-2 me-3 icon-circle">
-                                                                <FaThumbsDown className="text-white" />
-                                                            </div>
-                                                            <div>
-                                                                <div className="fw-bold text-danger">{proposalDetails.votersAgainst}</div>
-                                                                <small className="text-muted">Votes Against</small>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Funding Information */}
-                                            <div className="mb-4">
-                                                <h6 className="text-dark mb-3">
-                                                    <FaCoins className="me-2 text-warning" />
-                                                    Funding Information
-                                                </h6>
-                                                <div className="row">
-                                                    <div className="col-md-6 col-12 mb-3">
-                                                        <div className="stats-card border p-3 text-center">
-                                                            <div className="text-primary fw-bold fs-4">GNJ {fundingGoal}</div>
-                                                            <small className="text-muted">Funding Goal</small>
-                                                        </div>
-                                                    </div>
-                                                    <div className="col-md-6 col-12 mb-3">
-                                                        <div className="stats-card border p-3 text-center">
-                                                            <div className="text-success fw-bold fs-4">GNJ {totalInvested}</div>
-                                                            <small className="text-muted">Total Invested</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* Progress Bar */}
-                                                <div className="mt-3">
-                                                    <div className="d-flex justify-content-between align-items-center mb-2">
-                                                        <span className="text-muted">Progress</span>
-                                                        <span className="fw-bold">
-                                                            {fundingGoal > 0 ? ((totalInvested / fundingGoal) * 100).toFixed(1) : 0}%
-                                                        </span>
-                                                    </div>
-                                                    <div className="progress" style={{ height: '8px', borderRadius: '10px' }}>
-                                                        <div 
-                                                            className="progress-bar" 
-                                                            role="progressbar" 
-                                                            style={{ 
-                                                                width: `${fundingGoal > 0 ? (totalInvested / fundingGoal) * 100 : 0}%`,
-                                                                borderRadius: '10px'
-                                                            }}
-                                                        ></div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Proposer Information */}
-                                            <div className="mb-4">
-                                                <h6 className="text-dark mb-3">
-                                                    <FaUser className="me-2" />
-                                                    Proposer Information
-                                                </h6>
-                                                <div className="stats-card d-flex align-items-center p-3">
-                                                    <img 
-                                                        src="assets/image/Landing/iconCanabies.webp" 
-                                                        width={40} 
-                                                        height={40}
-                                                        className="rounded-circle me-3"
-                                                        alt="Proposer Avatar"
-                                                    />
-                                                    <div>
-                                                        <div className="fw-bold text-truncate" style={{ maxWidth: '200px' }}>
-                                                            {proposalDetails.proposer}
-                                                        </div>
-                                                        <small className="text-muted">Proposal Creator</small>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Timeline */}
-                                            <div className="mb-4">
-                                                <h6 className="text-dark mb-3">
-                                                    <FaCalendarAlt className="me-2 text-info" />
-                                                    Timeline
-                                                </h6>
-                                                <div className="stats-card d-flex align-items-center p-3">
-                                                    <div className="bg-info rounded-circle p-2 me-3 icon-circle">
-                                                        <FaClock className="text-white" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="fw-bold">End Date</div>
-                                                        <small className="text-muted">
-                                                            {proposalDetails.endTime && new Date(Number(proposalDetails.endTime) * 1000).toLocaleDateString('en-US', {
-                                                                year: 'numeric',
-                                                                month: 'long',
-                                                                day: 'numeric',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            })}
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Footer with Action Button */}
-                                <div className="card-footer bg-light border-0 py-4">
-                                    <div className="row align-items-center">
-                                        <div className="col-md-8 col-12 mb-3 mb-md-0">
-                                            <div className="d-flex align-items-center">
-                                                <FaVoteYea className="text-primary me-2" />
-                                                <span className="text-muted">
-                                                    Join the community and support this project with your vote
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="col-md-4 col-12 text-md-end text-center">
-                                            <button 
-                                                className="btn btn-gradient btn-lg rounded-pill px-4 shadow-sm text-white pulse-animation"
-                                                onClick={() => setShowVoteModal(true)}
-                                            >
-                                                <FaVoteYea className="me-2" />
-                                                Cast Your Vote
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    </section>
+  const voteAgainsts = () => {
+    setSupport(false);
+    setVoteAmount(1)
+  };
+  return (
+    <>
+      {/* Navigation */}
+      <Header onNetworkChange={handleNetworkChange} />
+      <div className="proposal-container">
+        <div className="container-fluid px-3 px-lg-5">
+          {/* Stats Section */}
+          <section className="py-4 mt-4">
+            {isLoading ? (
+              <div className="text-center my-5">
+                <div className="spinner-border text-primary" role="status" style={{ width: '4rem', height: '4rem' }}>
+                  <span className="visually-hidden">Loading...</span>
                 </div>
-            </div>
+                <p className="mt-3 text-muted">Fetching proposals from blockchain...</p>
+              </div>
+            ) : (
+              <div className="container-fluid">
+                {/* Main Proposal Card */}
+                <div className="card proposal-card shadow-lg border-0 mb-4 mt-5">
+                  {/* Header Section */}
+                  <div className="card-header gradient-header text-white py-4">
+                    <div className="row align-items-center">
+                      <div className="col-md-8 col-12">
+                        <h3 className="card-title mb-2 fw-bold">
+                          <FaChartLine className="me-2 floating-icon" />
+                          {proposalDetails.projectName}
+                        </h3>
+                        <p className="mb-0 opacity-75">
+                          Proposal ID: #{pId}
+                        </p>
+                      </div>
+                      <div className="col-md-4 col-12 text-md-end text-center mt-3 mt-md-0">
+                        <span className={`badge ${proposalDetails.executed ? 'bg-success' : 'bg-warning'} rounded-pill px-4 py-2`} style={{ fontSize: '0.9rem' }}>
+                          {proposalDetails.executed ? (
+                            <><FaCheckCircle className="me-1" /> Executed</>
+                          ) : (
+                            <><FaClock className="me-1" /> Pending</>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="card-body p-4">
+                    <div className="row">
+                      {/* Project Image */}
+                      <div className="col-lg-4 col-md-5 col-12 mb-4 mb-md-0">
+                        <div className="position-relative">
+                          <img
+                            className="w-100 project-image shadow-sm"
+                            src='assets/image/Landing/canabies-logo.avif'
+                            alt="Project Logo"
+                            style={{ objectFit: 'cover', height: '250px' }}
+                          />
+                          <div className="position-absolute top-0 start-0 p-2">
+                            <div className="bg-white rounded-circle p-2 shadow icon-circle">
+                              <FaVoteYea className="text-primary" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Project Details */}
+                      <div className="col-lg-8 col-md-7 col-12">
+                        {/* Description */}
+                        <div className="mb-4">
+                          <h5 className="text-primary mb-3">
+                            <FaEye className="me-2" />
+                            Project Description
+                          </h5>
+                          <p className="text-muted lh-lg text-truncate-3">
+                            {proposalDetails.description}
+                          </p>
+                        </div>
+
+                        {/* Project URL */}
+                        <div className="mb-4">
+                          <h6 className="text-dark mb-2">Project URL</h6>
+                          <a
+                            className="btn btn-outline-primary btn-sm rounded-pill px-3"
+                            href={proposalDetails.projectUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <FaExternalLinkAlt className="me-1" /> View Project
+                          </a>
+                        </div>
+
+                        {/* Voting Stats */}
+                        <div className="mb-4">
+                          <h6 className="text-dark mb-3">Voting Statistics</h6>
+                          <div className="row">
+                            <div className="col-md-6 col-12 mb-2">
+                              <div className="stats-card d-flex align-items-center p-3">
+                                <div className="bg-success rounded-circle p-2 me-3 icon-circle">
+                                  <FaThumbsUp className="text-white" />
+                                </div>
+                                <div>
+                                  <div className="fw-bold text-success">{proposalDetails.votersFor}</div>
+                                  <small className="text-muted">Votes For</small>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="col-md-6 col-12 mb-2">
+                              <div className="stats-card d-flex align-items-center p-3">
+                                <div className="bg-danger rounded-circle p-2 me-3 icon-circle">
+                                  <FaThumbsDown className="text-white" />
+                                </div>
+                                <div>
+                                  <div className="fw-bold text-danger">{proposalDetails.votersAgainst}</div>
+                                  <small className="text-muted">Votes Against</small>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Funding Information */}
+                        <div className="mb-4">
+                          <h6 className="text-dark mb-3">
+                            <FaCoins className="me-2 text-warning" />
+                            Funding Information
+                          </h6>
+                          <div className="row">
+                            <div className="col-md-6 col-12 mb-3">
+                              <div className="stats-card border p-3 text-center">
+                                <div className="text-primary fw-bold fs-4">GNJ {fundingGoal}</div>
+                                <small className="text-muted">Funding Goal</small>
+                              </div>
+                            </div>
+                            <div className="col-md-6 col-12 mb-3">
+                              <div className="stats-card border p-3 text-center">
+                                <div className="text-success fw-bold fs-4">GNJ {totalInvested}</div>
+                                <small className="text-muted">Total Invested</small>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="mt-3">
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                              <span className="text-muted">Progress</span>
+                              <span className="fw-bold">
+                                {fundingGoal > 0 ? ((totalInvested / fundingGoal) * 100).toFixed(1) : 0}%
+                              </span>
+                            </div>
+                            <div className="progress" style={{ height: '8px', borderRadius: '10px' }}>
+                              <div
+                                className="progress-bar"
+                                role="progressbar"
+                                style={{
+                                  width: `${fundingGoal > 0 ? (totalInvested / fundingGoal) * 100 : 0}%`,
+                                  borderRadius: '10px'
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Proposer Information */}
+                        <div className="mb-4">
+                          <h6 className="text-dark mb-3">
+                            <FaUser className="me-2" />
+                            Proposer Information
+                          </h6>
+                          <div className="stats-card d-flex align-items-center p-3">
+                            <img
+                              src="assets/image/Landing/iconCanabies.webp"
+                              width={40}
+                              height={40}
+                              className="rounded-circle me-3"
+                              alt="Proposer Avatar"
+                            />
+                            <div>
+                              <div className="fw-bold text-truncate" style={{ maxWidth: '200px' }}>
+                                {proposalDetails.proposer}
+                              </div>
+                              <small className="text-muted">Proposal Creator</small>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Timeline */}
+                        <div className="mb-4">
+                          <h6 className="text-dark mb-3">
+                            <FaCalendarAlt className="me-2 text-info" />
+                            Timeline
+                          </h6>
+                          <div className="stats-card d-flex align-items-center p-3">
+                            <div className="bg-info rounded-circle p-2 me-3 icon-circle">
+                              <FaClock className="text-white" />
+                            </div>
+                            <div>
+                              <div className="fw-bold">End Date</div>
+                              <small className="text-muted">
+                                {proposalDetails.endTime && new Date(Number(proposalDetails.endTime) * 1000).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </small>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer with Action Button */}
+                  <div className="card-footer bg-light border-0 py-4">
+                    <div className="row align-items-center">
+                      <div className="col-md-8 col-12 mb-3 mb-md-0">
+                        <div className="d-flex align-items-center">
+                          <FaVoteYea className="text-primary me-2" />
+                          <span className="text-muted">
+                            Join the community and support this project with your vote
+                          </span>
+                        </div>
+                      </div>
+                      <div className="col-md-4 col-12 text-md-end text-center">
+                        <button
+                          className="btn btn-gradient btn-lg rounded-pill px-4 shadow-sm text-white pulse-animation"
+                          onClick={() => setShowVoteModal(true)}
+                        >
+                          <FaVoteYea className="me-2" />
+                          Cast Your Vote
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
 
 
 
 
 
-            {/* Footer */}
-            <Footer />
-            <ToastContainer position="top-right" autoClose={5000} />
+      {/* Footer */}
+      <Footer />
+      <ToastContainer position="top-right" autoClose={5000} />
 
-            {showVoteModal && (
+      {showVoteModal && (
         <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }} tabIndex="-1">
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content border-0 shadow-lg">
@@ -610,7 +607,7 @@ function Proposal() {
                   </label>
                   <div className="row g-3">
                     <div className="col-md-6 col-12">
-                      <div 
+                      <div
                         className={`vote-card ${support ? 'bg-success bg-opacity-10 border-success selected' : 'bg-light'}`}
                         onClick={() => setSupport(true)}
                       >
@@ -689,8 +686,8 @@ function Proposal() {
               <div className="modal-footer bg-light border-0 p-4">
                 <div className="row w-100">
                   <div className="col-md-6 col-12 mb-2 mb-md-0">
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       className="btn btn-outline-secondary btn-lg w-100 rounded-pill"
                       onClick={closeVoteModal}
                     >
@@ -703,9 +700,9 @@ function Proposal() {
                       className="btn btn-gradient btn-lg w-100 rounded-pill text-white"
                       onClick={handleVoteSubmit}
                       disabled={loading || !voteAmount || voteAmount <= 0}
-                      style={{ 
-                        background: support 
-                          ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)' 
+                      style={{
+                        background: support
+                          ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)'
                           : 'linear-gradient(135deg, #dc3545 0%, #fd7e14 100%)',
                         border: 'none'
                       }}
@@ -729,8 +726,8 @@ function Proposal() {
           </div>
         </div>
       )}
-        </>
-    );
+    </>
+  );
 }
 
 export default Proposal;

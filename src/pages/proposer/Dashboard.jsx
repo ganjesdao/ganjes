@@ -44,7 +44,7 @@ function Dashboard() {
   // Initialize contract and fetch proposals
   const initializeContract = async (contractAddr) => {
     if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-      toast.warning('⚠️ Contract not deployed on this network yet!');
+
       setDaoContract(null);
       setProposalDetails([]);
       setWalletAddress('');
@@ -68,18 +68,15 @@ function Dashboard() {
       const contract = new ethers.Contract(contractAddr, daoABI, signer);
       setDaoContract(contract);
 
-      const ids = await contract.getAllProposalIds();
+      const ids = await contract.getProposalsByProposer(address);
       await getProposalDetails(ids, contract, address);
 
-      toast.success(`✅ Connected to contract on ${currentNetwork?.chainName}`);
     } catch (error) {
       console.error('Init error:', error.message);
       if (error.message.includes('could not detect network')) {
         toast.error('❌ Failed to connect to the network. Please check your wallet connection.');
       } else if (error.message.includes('user rejected')) {
         toast.error('❌ Connection rejected by user.');
-      } else {
-        toast.error(`❌ Failed to initialize contract: ${error.message}`);
       }
       setDaoContract(null);
       setProposalDetails([]);
@@ -162,7 +159,7 @@ function Dashboard() {
 
   const viewDetails = (proposalId) => {
     localStorage.setItem('proposalId', proposalId)
-    window.location.href ="/proposal-details"
+    window.location.href = "/proposal-details"
   };
   return (
     <>
@@ -179,7 +176,7 @@ function Dashboard() {
             <main>
               <div className="container-fluid px-4">
                 <h4 className="mt-4">Dashboard</h4>
-                
+
 
                 {/* Network Status */}
                 <div className="row mb-4">
@@ -382,8 +379,8 @@ function Dashboard() {
 
                                   <div className="mb-3 p-3 ">
                                     <div className="text-end">
-                                      <button className="btn btn-outline-success" onClick={()=>viewDetails(p.id)}>View Details</button>
-                                    </div>  
+                                      <button className="btn btn-outline-success" onClick={() => viewDetails(p.id)}>View Details</button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>

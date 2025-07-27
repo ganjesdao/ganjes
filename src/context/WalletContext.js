@@ -28,31 +28,31 @@ export const WalletProvider = ({ children }) => {
 
     try {
       setIsConnecting(true);
-      
+
       // Check if already connected
       const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-      
+
       if (accounts.length > 0) {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const account = await signer.getAddress();
-        
+
         // Get current network
         const chainId = await window.ethereum.request({ method: 'eth_chainId' });
         const network = getNetworkByChainId(chainId);
         const address = getContractAddress(chainId);
-        
+
         setProvider(provider);
         setSigner(signer);
         setAccount(account);
         setCurrentNetwork(network);
         setContractAddress(address);
-        
+
         console.log('Wallet auto-connected:', account);
         console.log('Network:', network?.chainName);
         console.log('Contract Address:', address);
       }
-      
+
       setIsInitialized(true);
     } catch (error) {
       console.error('Error initializing wallet:', error);
@@ -71,38 +71,31 @@ export const WalletProvider = ({ children }) => {
 
     try {
       setIsConnecting(true);
-      
-      // Request account connection
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      
       if (accounts.length > 0) {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
         const account = await signer.getAddress();
-        
+
         // Get current network
         const chainId = await window.ethereum.request({ method: 'eth_chainId' });
         const network = getNetworkByChainId(chainId);
         const address = getContractAddress(chainId);
-        
         setProvider(provider);
         setSigner(signer);
         setAccount(account);
         setCurrentNetwork(network);
         setContractAddress(address);
-        
         toast.success('Wallet connected successfully!');
         console.log('Wallet connected:', account);
         console.log('Network:', network?.chainName);
         console.log('Contract Address:', address);
-        
         return true;
       }
-      
       return false;
     } catch (error) {
-      console.error('Error connecting wallet:', error);
-      toast.error('Failed to connect wallet. Please try again.');
+      console.error('Error connecting wallet:', error?.message);
+      toast.error(`Failed to connect wallet: ${error?.message}`);
       return false;
     } finally {
       setIsConnecting(false);
@@ -124,7 +117,7 @@ export const WalletProvider = ({ children }) => {
     if (accounts.length > 0) {
       setAccount(accounts[0]);
       console.log('Account changed to:', accounts[0]);
-      
+
       // Reinitialize provider and signer with new account
       if (window.ethereum) {
         const initNewAccount = async () => {
@@ -148,16 +141,14 @@ export const WalletProvider = ({ children }) => {
   const handleChainChanged = useCallback((chainId) => {
     const network = getNetworkByChainId(chainId);
     const address = getContractAddress(chainId);
-    
     setCurrentNetwork(network);
     setContractAddress(address);
-    
+
     console.log('Network changed to:', network?.chainName);
     console.log('New contract address:', address);
-    
-    if (network) {
-      toast.info(`Switched to ${network.chainName}`);
-    } else {
+
+    if (!network) {
+
       toast.warning('Unsupported network detected');
     }
   }, []);
@@ -199,7 +190,7 @@ export const WalletProvider = ({ children }) => {
     isConnecting,
     isInitialized,
     isConnected: !!account,
-    
+
     // Actions
     connectWallet,
     disconnectWallet,

@@ -18,7 +18,7 @@ const ProposalManagement = () => {
   const [loading, setLoading] = useState(false);
   const [currentNetwork, setCurrentNetwork] = useState(null);
   const [contractAddress, setContractAddress] = useState("");
-  
+
   // Filter states
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSort, setFilterSort] = useState('newest');
@@ -86,7 +86,7 @@ const ProposalManagement = () => {
     const styleSheet = document.createElement("style");
     styleSheet.innerText = customStyles;
     styleSheet.id = "admin-proposal-styles";
-    
+
     const existingStyles = document.getElementById("admin-proposal-styles");
     if (!existingStyles) {
       document.head.appendChild(styleSheet);
@@ -113,7 +113,7 @@ const ProposalManagement = () => {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const network = await provider.getNetwork();
         const chainId = '0x' + network.chainId.toString(16);
-        
+
         const networkConfig = Object.values(NETWORKS).find(n => n.chainId === chainId);
         if (networkConfig) {
           setCurrentNetwork(networkConfig);
@@ -138,12 +138,12 @@ const ProposalManagement = () => {
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: network.chainId }],
       });
-      
+
       setCurrentNetwork(network);
       const address = getContractAddress(network.chainId);
       setContractAddress(address);
       await initializeContract(address);
-      
+
       toast.success(`Switched to ${network.chainName}`);
     } catch (error) {
       if (error.code === 4902) {
@@ -173,7 +173,7 @@ const ProposalManagement = () => {
 
   const initializeContract = async (contractAddr) => {
     if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-      toast.warning("⚠️ Contract not deployed on this network yet!");
+
       setDaoContract(null);
       setProposalDetails([]);
       return;
@@ -195,7 +195,7 @@ const ProposalManagement = () => {
 
       const ids = await contract.getAllProposalIds();
       await getProposalDetails(ids, contract);
-      
+
       toast.success(`✅ Connected to DAO contract on ${currentNetwork?.chainName}`);
     } catch (error) {
       console.error("Init error:", error.message);
@@ -211,7 +211,7 @@ const ProposalManagement = () => {
     try {
       const details = await Promise.all(ids.map(async (id) => {
         const proposal = await contract.proposals(id);
-        
+
         const endTimeStr = proposal.endTime ? proposal.endTime.toString() : '0';
         const fundingGoalStr = proposal.fundingGoal ? proposal.fundingGoal.toString() : '0';
         const totalInvestedStr = proposal.totalInvested ? proposal.totalInvested.toString() : '0';
@@ -219,7 +219,7 @@ const ProposalManagement = () => {
         const totalVotesForStr = proposal.totalVotesFor ? proposal.totalVotesFor.toString() : '0';
         const totalVotesAgainstStr = proposal.totalVotesAgainst ? proposal.totalVotesAgainst.toString() : '0';
         const votersAgainst = proposal.votersAgainst ? proposal.votersAgainst.toString() : '0';
-        
+
         return {
           id: id.toString(),
           description: proposal.description || "",
@@ -251,16 +251,16 @@ const ProposalManagement = () => {
     try {
       setLoading(true);
       toast.info("Executing proposal...");
-      
+
       const tx = await daoContract.executeProposal(proposalId);
       await tx.wait();
-      
+
       toast.success('Proposal executed successfully!');
-      
+
       // Refresh proposal details
       const ids = await daoContract.getAllProposalIds();
       await getProposalDetails(ids, daoContract);
-      
+
     } catch (error) {
       console.error('Error executing proposal:', error);
       if (error.message.includes("user rejected")) {
@@ -299,7 +299,7 @@ const ProposalManagement = () => {
     }
 
     if (searchQuery) {
-      filtered = filtered.filter(p => 
+      filtered = filtered.filter(p =>
         (p.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.proposer || '').toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -613,8 +613,8 @@ const ProposalManagement = () => {
                       </span>
                     </div>
                     <h3 style={{ margin: 0, color: '#1f2937' }}>
-                      {proposal.description.length > 80 ? 
-                        proposal.description.slice(0, 80) + '...' : 
+                      {proposal.description.length > 80 ?
+                        proposal.description.slice(0, 80) + '...' :
                         proposal.description
                       }
                     </h3>
@@ -663,7 +663,7 @@ const ProposalManagement = () => {
                       borderRadius: '4px',
                       overflow: 'hidden'
                     }}>
-                      <div 
+                      <div
                         className="admin-progress-bar"
                         style={{
                           height: '100%',
@@ -701,9 +701,9 @@ const ProposalManagement = () => {
                         cursor: proposal.executed || loading ? 'not-allowed' : 'pointer'
                       }}
                     >
-                      {loading ? 'Processing...' : 
-                       proposal.executed ? 'Already Executed' : 
-                       'Execute Proposal'}
+                      {loading ? 'Processing...' :
+                        proposal.executed ? 'Already Executed' :
+                          'Execute Proposal'}
                     </button>
                     {!proposal.executed && parseFloat(proposal.totalInvested) >= parseFloat(proposal.fundingGoal) && (
                       <div style={{

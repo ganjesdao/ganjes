@@ -1,18 +1,43 @@
 /**
  * Admin Sidebar Component
- * Navigation sidebar for admin panel
+ * Navigation sidebar for admin panel with mobile detection
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { logoutAsync, selectUser } from '../../store/slices/authSlice';
 
-const AdminSidebar = ({ sidebarOpen, setSidebarOpen, isMobile }) => {
+const AdminSidebar = ({ sidebarOpen, setSidebarOpen, onMobileChange }) => {
+  const [isMobile, setIsMobile] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
   const user = useSelector(selectUser);
+
+  // Mobile detection and responsive handling
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+
+      // Notify parent component about mobile state change
+      if (onMobileChange) {
+        onMobileChange(mobile);
+      }
+
+      // On mobile, start with sidebar closed
+      if (mobile) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [setSidebarOpen, onMobileChange]);
 
   const navigationItems = [
     {
@@ -167,7 +192,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, isMobile }) => {
                   }
                 }}
               >
-                <span style={{ 
+                <span style={{
                   fontSize: isMobile ? '1.25rem' : '1.5rem',
                   minWidth: '24px',
                   textAlign: 'center'
@@ -177,8 +202,8 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, isMobile }) => {
                 {(sidebarOpen || isMobile) && (
                   <div>
                     <div style={{ fontWeight: '600' }}>{item.name}</div>
-                    <div style={{ 
-                      fontSize: '0.75rem', 
+                    <div style={{
+                      fontSize: '0.75rem',
                       color: isActive ? '#e0e7ff' : '#9ca3af',
                       marginTop: '0.125rem'
                     }}>
@@ -224,15 +249,15 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, isMobile }) => {
                   {user?.name?.charAt(0)?.toUpperCase() || 'A'}
                 </div>
                 <div>
-                  <div style={{ 
-                    fontWeight: '500', 
-                    fontSize: isMobile ? '0.8rem' : '0.875rem' 
+                  <div style={{
+                    fontWeight: '500',
+                    fontSize: isMobile ? '0.8rem' : '0.875rem'
                   }}>
                     {user?.name || 'Admin User'}
                   </div>
-                  <div style={{ 
-                    color: '#9ca3af', 
-                    fontSize: isMobile ? '0.7rem' : '0.75rem' 
+                  <div style={{
+                    color: '#9ca3af',
+                    fontSize: isMobile ? '0.7rem' : '0.75rem'
                   }}>
                     Administrator
                   </div>
@@ -240,7 +265,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, isMobile }) => {
               </div>
             </div>
           )}
-          
+
           <button
             onClick={handleLogout}
             style={{

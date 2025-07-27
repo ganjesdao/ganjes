@@ -3,23 +3,54 @@
  * Header with navigation and network selector for admin panel
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
 import AdminNetworkSelector from '../network/AdminNetworkSelector';
 import MetaMaskConnector from '../network/MetaMaskConnector';
 
-const AdminHeader = ({ 
-  currentPage, 
-  isMobile, 
-  sidebarOpen, 
-  setSidebarOpen, 
-  currentNetwork, 
-  contractAddress, 
+const AdminHeader = ({
+  currentPage,
+  isMobile,
+  sidebarOpen,
+  setSidebarOpen,
+  currentNetwork,
+  contractAddress,
   onNetworkChange,
-  handleMetaMaskConnected 
+  handleMetaMaskConnected
 }) => {
   const user = useSelector(selectUser);
+  const [isMetaMaskConnected, setIsMetaMaskConnected] = useState(false);
+
+  // Check MetaMask connection status
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          setIsMetaMaskConnected(accounts.length > 0);
+        } catch (error) {
+          setIsMetaMaskConnected(false);
+        }
+      } else {
+        setIsMetaMaskConnected(false);
+      }
+    };
+
+    checkConnection();
+
+    // Listen for account changes
+    if (window.ethereum) {
+      const handleAccountsChanged = (accounts) => {
+        setIsMetaMaskConnected(accounts.length > 0);
+      };
+
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      return () => {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      };
+    }
+  }, []);
 
   return (
     <header style={{
@@ -56,7 +87,7 @@ const AdminHeader = ({
             ☰
           </button>
         )}
-        
+
         <div>
           <h1 style={{
             fontSize: isMobile ? '1.2rem' : '1.5rem',
@@ -77,7 +108,7 @@ const AdminHeader = ({
           )}
         </div>
       </div>
-      
+
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -86,6 +117,33 @@ const AdminHeader = ({
         color: '#6b7280',
         flexWrap: isMobile ? 'wrap' : 'nowrap'
       }}>
+        {/* Connection Status Indicator */}
+        {!isMobile && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 1rem',
+            backgroundColor: isMetaMaskConnected ? '#f0f9ff' : '#fef2f2',
+            borderRadius: '8px',
+            border: `1px solid ${isMetaMaskConnected ? '#bae6fd' : '#fecaca'}`
+          }}>
+            <span style={{
+              fontSize: '0.8rem',
+              color: isMetaMaskConnected ? '#0369a1' : '#dc2626'
+            }}>
+              {isMetaMaskConnected ? '🟢' : '🔴'}
+            </span>
+            <span style={{
+              fontSize: '0.75rem',
+              color: isMetaMaskConnected ? '#0369a1' : '#dc2626',
+              fontWeight: '500'
+            }}>
+              {isMetaMaskConnected ? 'Connected' : 'Not Connected'}
+            </span>
+          </div>
+        )}
+
         {/* Network Selector or MetaMask Connector */}
         {!isMobile && (
           <div style={{
@@ -94,37 +152,40 @@ const AdminHeader = ({
             alignItems: 'flex-start',
             gap: '0.25rem'
           }}>
-            {window.ethereum ? (
+            {window.ethereum && isMetaMaskConnected ? (
               <>
-                <span style={{ 
-                  fontSize: '0.75rem', 
-                  color: '#6b7280', 
+                <span style={{
+                  fontSize: '0.75rem',
+                  color: '#6b7280',
                   fontWeight: '500',
                   marginBottom: '0.25rem'
                 }}>
                   NETWORK:
                 </span>
-                <AdminNetworkSelector 
-                  onNetworkChange={onNetworkChange} 
+                <AdminNetworkSelector
+                  onNetworkChange={onNetworkChange}
                   initialNetwork={currentNetwork}
                 />
               </>
             ) : (
               <>
-                <span style={{ 
-                  fontSize: '0.75rem', 
-                  color: '#6b7280', 
+                <span style={{
+                  fontSize: '0.75rem',
+                  color: '#6b7280',
                   fontWeight: '500',
                   marginBottom: '0.25rem'
                 }}>
                   WALLET:
                 </span>
-                <MetaMaskConnector onConnected={handleMetaMaskConnected} />
+                <MetaMaskConnector onConnected={(info) => {
+                  handleMetaMaskConnected(info);
+                  setIsMetaMaskConnected(true);
+                }} />
               </>
             )}
           </div>
         )}
-        
+
         {/* Contract Address Display - Hidden on mobile */}
         {!isMobile && currentNetwork && contractAddress && (
           <div style={{
@@ -149,7 +210,7 @@ const AdminHeader = ({
             </code>
           </div>
         )}
-        
+
         {/* User Info */}
         <div style={{
           display: 'flex',

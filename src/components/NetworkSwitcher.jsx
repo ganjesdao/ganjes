@@ -9,7 +9,7 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
   // Check current network on component mount
   useEffect(() => {
     checkCurrentNetwork();
-    
+
     // Listen for network changes
     if (window.ethereum) {
       window.ethereum.on('chainChanged', handleChainChanged);
@@ -29,7 +29,7 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
 
   const checkCurrentNetwork = async () => {
     if (!window.ethereum) return;
-    
+
     try {
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
       const network = getNetworkByChainId(chainId);
@@ -54,11 +54,11 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: network.chainId }],
       });
-      
+
       setCurrentNetwork(network);
       setIsDropdownOpen(false);
-      toast.success(`Switched to ${network.chainName}!`);
-      
+      //  toast.success(`Switched to ${network.chainName}!`);
+
       if (onNetworkChange) {
         onNetworkChange(network);
       }
@@ -70,11 +70,11 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
             method: 'wallet_addEthereumChain',
             params: [network],
           });
-          
+
           setCurrentNetwork(network);
           setIsDropdownOpen(false);
-          toast.success(`Added and switched to ${network.chainName}!`);
-          
+          // toast.success(`Added and switched to ${network.chainName}!`);
+
           if (onNetworkChange) {
             onNetworkChange(network);
           }
@@ -162,7 +162,7 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
           {getNetworksList().map((network) => {
             const status = getNetworkStatus(network);
             const isActive = status === 'connected';
-            
+
             return (
               <div key={network.chainId}>
                 <button
@@ -201,16 +201,16 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
                     </div>
                   </div>
                   {isActive && (
-                    <span style={{ 
-                      fontSize: '12px', 
-                      color: network.color, 
-                      fontWeight: '600' 
+                    <span style={{
+                      fontSize: '12px',
+                      color: network.color,
+                      fontWeight: '600'
                     }}>
                       ✓ Connected
                     </span>
                   )}
                 </button>
-                
+
                 {/* Faucet Link for Testnets */}
                 {network.faucetUrl && status === 'connected' && (
                   <div style={{
@@ -220,9 +220,9 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
                     fontSize: '12px'
                   }}>
                     <span style={{ color: '#666' }}>💧 Need test tokens? </span>
-                    <a 
-                      href={network.faucetUrl} 
-                      target="_blank" 
+                    <a
+                      href={network.faucetUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
                       style={{ color: network.color, textDecoration: 'none', fontWeight: '500' }}
                     >
