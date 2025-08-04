@@ -14,13 +14,12 @@ function Landing() {
   const navigate = useNavigate();
   const [contractAddress, setContractAddress] = useState("");
   const [currentNetwork, setCurrentNetwork] = useState(null);
-  const [stats, setStats] = useState({
-    totalProposals: 0,
-    approvedProposals: 0,
-    runningProposals: 0,
-    totalFunded: '0',
-    activeInvestors: 0,
-  });
+  const [totalProposals, setTotalProposals] = useState("0")
+  const [approvedProposals, setApprovedProposals] = useState(0)
+  const [activeInvestors, setActiveInvestors] = useState(0)
+  const [totalFunded, setTotalFunded] = useState(0)
+
+
 
   // Check if wallet is already connected on component mount
   useEffect(() => {
@@ -144,69 +143,65 @@ function Landing() {
         try {
           setIsLoading(true);
 
+          console.log('Fetching data...');
+
           // Fetch stats
-          const totalProposals = await daoContract.getTotalProposals();
-          const [approvedCount] = await daoContract.getApprovedProposals();
-          const [runningCount] = await daoContract.getRunningProposals();
-          const totalFunded = ethers.formatEther(await daoContract.getTotalFundedAmount());
-          const activeInvestors = await daoContract.getActiveInvestorCount();
+          const totalProposals = await daoContract.proposalCount();
+          console.log('Total Proposals:', totalProposals.toString());
+          setTotalProposals(totalProposals.toString());
 
-          setStats({
-            totalProposals: totalProposals.toString(),
-            approvedProposals: approvedCount.toString(),
-            runningProposals: runningCount.toString(),
-            totalFunded,
-            activeInvestors: activeInvestors.toString(),
-          });
+          // const activeInvestors = await daoContract.getActiveInvestorCount() || 0;
+          // setActiveInvestors(activeInvestors);
 
-          // Fetch proposal details
-          try {
-            const proposalIds = await daoContract.getAllProposalIds();
-            const proposalData = [];
+          // const [approvedCount] = await daoContract.getApprovedProposals();
+          // const [runningCount] = await daoContract.getRunningProposals();
+          // const totalFunded = ethers.formatEther(await daoContract.getTotalFundedAmount());
 
-            for (const id of proposalIds) {
-              try {
-                const basic = await daoContract.getProposalBasicDetails(id);
-                const voting = await daoContract.getProposalVotingDetails(id);
 
-                proposalData.push({
-                  id: basic.id.toString(),
-                  projectName: basic.projectName,
-                  projectUrl: basic.projectUrl,
-                  description: basic.description,
-                  fundingGoal: ethers.formatEther(basic.fundingGoal),
-                  totalInvested: ethers.formatEther(voting.totalInvested),
-                  endTime: new Date(Number(basic.endTime) * 1000).toLocaleString(),
-                  passed: basic.passed,
-                });
-              } catch (proposalError) {
-                console.warn(`Failed to fetch proposal ${id}:`, proposalError);
-              }
-            }
 
-            setProposalDetails(proposalData);
-            console.log('Proposals loaded:', proposalData.length);
-          } catch (proposalError) {
-            console.warn('Failed to fetch proposals:', proposalError);
-            setProposalDetails([]);
-          }
 
-          console.log('Stats:', {
-            totalProposals: totalProposals.toString(),
-            approvedProposals: approvedCount.toString(),
-            runningProposals: runningCount.toString(),
-            totalFunded,
-            activeInvestors: activeInvestors.toString(),
-          });
+          // // Fetch proposal details
+          // try {
+          //   const proposalIds = await daoContract.getAllProposalIds();
+          //   const proposalData = [];
+
+          //   for (const id of proposalIds) {
+          //     try {
+          //       const basic = await daoContract.getProposalBasicDetails(id);
+          //       const voting = await daoContract.getProposalVotingDetails(id);
+
+          //       proposalData.push({
+          //         id: basic.id.toString(),
+          //         projectName: basic.projectName,
+          //         projectUrl: basic.projectUrl,
+          //         description: basic.description,
+          //         fundingGoal: ethers.formatEther(basic.fundingGoal),
+          //         totalInvested: ethers.formatEther(voting.totalInvested),
+          //         endTime: new Date(Number(basic.endTime) * 1000).toLocaleString(),
+          //         passed: basic.passed,
+          //       });
+          //     } catch (proposalError) {
+          //       console.warn(`Failed to fetch proposal ${id}:`, proposalError);
+          //     }
+          //   }
+
+          //   setProposalDetails(proposalData);
+          //   console.log('Proposals loaded:', proposalData.length);
+          // } catch (proposalError) {
+          //   console.warn('Failed to fetch proposals:', proposalError);
+          //   setProposalDetails([]);
+          // }
+
+          // console.log('Stats:', {
+          //   totalProposals: totalProposals.toString(),
+          //   approvedProposals: approvedCount.toString(),
+          //   runningProposals: runningCount.toString(),
+          //   totalFunded,
+          //   activeInvestors: activeInvestors.toString(),
+          // });
         } catch (err) {
           console.error('Error fetching data:', err);
-          setStats({
-            totalProposals: 0,
-            approvedProposals: 0,
-            runningProposals: 0,
-            totalFunded: 0,
-            activeInvestors: 0,
-          });
+
           setProposalDetails([]);
         } finally {
           setIsLoading(false);
@@ -215,13 +210,13 @@ function Landing() {
       fetchProposalsOnNetworkChange();
     } else {
       // Reset data when no contract
-      setStats({
-        totalProposals: 0,
-        approvedProposals: 0,
-        runningProposals: 0,
-        totalFunded: 0,
-        activeInvestors: 0,
-      });
+      // setStats({
+      //   totalProposals: 0,
+      //   approvedProposals: 0,
+      //   runningProposals: 0,
+      //   totalFunded: 0,
+      //   activeInvestors: 0,
+      // });
       setProposalDetails([]);
       setIsLoading(false);
     }
@@ -554,7 +549,7 @@ function Landing() {
                     <i className="fas fa-project-diagram fa-3x opacity-75"></i>
                   </div>
                   <h3 className="display-5 fw-bold mb-2" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
-                    {stats.totalProposals}+
+                    {totalProposals}+
                   </h3>
                   <p className="mb-0 opacity-90 fw-semibold">Total Projects</p>
                   <small className="opacity-75">💡 Innovation Unleashed</small>
@@ -584,7 +579,7 @@ function Landing() {
                     <i className="fas fa-globe fa-3x opacity-75"></i>
                   </div>
                   <h3 className="display-5 fw-bold mb-2" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
-                    {stats.approvedProposals}+
+                    {approvedProposals}+
                   </h3>
                   <p className="mb-0 opacity-90 fw-semibold">💡 Innovation Unleashed</p>
                   <small className="opacity-75">🌍 Global Reach</small>
@@ -615,7 +610,7 @@ function Landing() {
                     <i className="fas fa-users fa-3x opacity-75"></i>
                   </div>
                   <h3 className="display-5 fw-bold mb-2" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
-                    {stats.activeInvestors}+
+                    {activeInvestors}+
                   </h3>
                   <p className="mb-0 opacity-90 fw-semibold">Active Investors</p>
                   <small className="opacity-75">🌟 Visionary Community</small>
@@ -645,7 +640,7 @@ function Landing() {
                     <i className="fas fa-dollar-sign fa-3x opacity-75"></i>
                   </div>
                   <h3 className="display-5 fw-bold mb-2" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}>
-                    G {stats.totalFunded}+
+                    G {totalFunded}+
                   </h3>
                   <p className="mb-0 opacity-90 fw-semibold">Total Funded</p>
                   <small className="opacity-75">💰 Capital Deployed</small>
