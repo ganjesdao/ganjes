@@ -338,7 +338,7 @@ function MyVoting() {
       setDaoContract(contract);
 
 
-      toast.success(`✅ Connected to contract on ${currentNetwork?.chainName}`);
+      //  toast.success(`✅ Connected to contract on ${currentNetwork?.chainName}`);
     } catch (error) {
       console.error("Init error:", error.message);
 
@@ -440,7 +440,7 @@ function MyVoting() {
       // Check if method exists in ABI
       if (!daoContract.interface.hasFunction("getVotesByInvestor")) {
         console.warn("⚠ Method getVotesByInvestor not found in contract ABI.");
-        toast.error("The contract does not support voting history.");
+        //   toast.error("The contract does not support voting history.");
         return;
       }
 
@@ -595,7 +595,7 @@ function MyVoting() {
       // Get all proposal IDs
       const allIds = await daoContract.getAllProposalIds();
       console.log("All proposal IDs:", allIds);
-      
+
       if (!allIds || allIds.length === 0) {
         setRecentProposals([]);
         return;
@@ -609,7 +609,7 @@ function MyVoting() {
         try {
           const proposalBasic = await daoContract.getProposalBasicDetails(Number(id));
           const votingDetails = await daoContract.getProposalVotingDetails(Number(id));
-          
+
           return {
             id: Number(id),
             projectName: proposalBasic.projectName,
@@ -626,24 +626,24 @@ function MyVoting() {
             votersAgainst: Number(votingDetails.votersAgainst),
             totalInvested: ethers.formatEther(votingDetails.totalInvested),
             isActive: new Date() < new Date(Number(proposalBasic.endTime) * 1000),
-            progressPercentage: proposalBasic.fundingGoal > 0 ? 
+            progressPercentage: proposalBasic.fundingGoal > 0 ?
               (Number(votingDetails.totalInvested) / Number(proposalBasic.fundingGoal) * 100) : 0
           };
         } catch (error) {
-          console.error(`Error fetching proposal ${id} details:`, error);
+          // console.error(`Error fetching proposal ${id} details:`, error);
           return null;
         }
       });
 
       const proposals = await Promise.all(proposalPromises);
       const validProposals = proposals.filter(proposal => proposal !== null);
-      
+
       setRecentProposals(validProposals);
       console.log("✅ Recent proposals fetched:", validProposals);
 
     } catch (error) {
       console.error("❌ Error fetching recent proposals:", error);
-      toast.error("Failed to fetch recent proposals");
+      //   toast.error("Failed to fetch recent proposals");
     } finally {
       setLoadingProposals(false);
     }
@@ -921,8 +921,8 @@ function MyVoting() {
                                             </div>
                                             <div>
                                               <h6 className="mb-1 fw-bold text-dark">
-                                                {proposal.projectName.length > 15 ? 
-                                                  `${proposal.projectName.substring(0, 15)}...` : 
+                                                {proposal.projectName.length > 15 ?
+                                                  `${proposal.projectName.substring(0, 15)}...` :
                                                   proposal.projectName
                                                 }
                                               </h6>
@@ -938,10 +938,10 @@ function MyVoting() {
 
                                         {/* Project Description */}
                                         <div className="mb-4">
-                                          <p className="text-muted mb-0 text-truncate-2" style={{ 
-                                            height: '3rem', 
-                                            fontSize: '0.9rem', 
-                                            lineHeight: '1.5' 
+                                          <p className="text-muted mb-0 text-truncate-2" style={{
+                                            height: '3rem',
+                                            fontSize: '0.9rem',
+                                            lineHeight: '1.5'
                                           }}>
                                             {proposal.description}
                                           </p>
@@ -980,7 +980,7 @@ function MyVoting() {
                                               <FaDollarSign className="text-warning me-2" />
                                               <span className="text-muted fw-600" style={{ fontSize: '0.85rem' }}>Funding</span>
                                             </div>
-                                            <span className="fw-bold" style={{ 
+                                            <span className="fw-bold" style={{
                                               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                                               WebkitBackgroundClip: 'text',
                                               WebkitTextFillColor: 'transparent',
@@ -1008,7 +1008,7 @@ function MyVoting() {
                                         {/* Modern Action Buttons */}
                                         <div className="row g-2 mt-auto">
                                           <div className="col-7">
-                                            <button 
+                                            <button
                                               className="btn action-btn-modern btn-sm w-100"
                                               onClick={() => {
                                                 localStorage.setItem('proposalId', proposal.id);
@@ -1021,7 +1021,7 @@ function MyVoting() {
                                           </div>
                                           <div className="col-5">
                                             {proposal.isActive && (
-                                              <button 
+                                              <button
                                                 className="btn action-btn-primary btn-sm w-100"
                                                 onClick={() => {
                                                   localStorage.setItem('proposalId', proposal.id);

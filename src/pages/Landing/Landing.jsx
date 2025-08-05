@@ -142,17 +142,13 @@ function Landing() {
       const fetchProposalsOnNetworkChange = async () => {
         try {
           setIsLoading(true);
-
           console.log('Fetching data...');
-
           // Fetch stats
           const totalProposals = await daoContract.proposalCount();
           console.log('Total Proposals:', totalProposals.toString());
           setTotalProposals(totalProposals.toString());
-
           // const activeInvestors = await daoContract.getActiveInvestorCount() || 0;
           // setActiveInvestors(activeInvestors);
-
           // const [approvedCount] = await daoContract.getApprovedProposals();
           // const [runningCount] = await daoContract.getRunningProposals();
           // const totalFunded = ethers.formatEther(await daoContract.getTotalFundedAmount());
@@ -1437,3 +1433,5 @@ function Landing() {
 }
 
 export default Landing;
+
+

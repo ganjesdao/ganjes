@@ -7,48 +7,48 @@ function Sidebar({ isToggle, setIsToggle }) {
         <>
             <div className="sb-sidenav-menu">
                 <div className="nav">
-                    <Link className="nav-link mt-3" to="/investor-dashboard">
-                        <div className="sb-nav-link-icon"><i className="fas fa-tachometer-alt" /></div>
+                    <Link className="nav-link mt-3 text-white" to="/investor-dashboard">
+                        <div className="sb-nav-link-icon text-white"><i className="fas fa-tachometer-alt " /></div>
                         Dashboard
                     </Link>
 
-                    <a className="nav-link" href="">
-                        <div className="sb-nav-link-icon">
+                    <a className="nav-link text-white" href="">
+                        <div className="sb-nav-link-icon text-white">
                             <i className="fas fa-chart-area" />
                         </div>
                         Multisig
                     </a>
 
-                     <Link className="nav-link" to="/investor-voting-data">
-                        <div className="sb-nav-link-icon">
+                    <Link className="nav-link text-white" to="/investor-voting-data">
+                        <div className="sb-nav-link-icon text-white">
                             <i className="fas fa-chart-area" />
                         </div>
                         My Voting
                     </Link>
 
-                     <a className="nav-link" href="">
-                        <div className="sb-nav-link-icon">
+                    <a className="nav-link text-white" href="">
+                        <div className="sb-nav-link-icon text-white">
                             <i className="fas fa-chart-area" />
                         </div>
                         Lock to Vote
                     </a>
 
-                    <a className="nav-link" href="">
-                        <div className="sb-nav-link-icon">
+                    <a className="nav-link text-white" href="">
+                        <div className="sb-nav-link-icon text-white">
                             <i className="fas fa-chart-area" />
                         </div>
                         Optimistic
                     </a>
 
-                     <a className="nav-link" href="">
-                        <div className="sb-nav-link-icon">
+                    <a className="nav-link text-white" href="">
+                        <div className="sb-nav-link-icon text-white">
                             <i className="fas fa-chart-area" />
                         </div>
                         Emergency
                     </a>
 
-                     <a className="nav-link" href="">
-                        <div className="sb-nav-link-icon">
+                    <a className="nav-link text-white" href="">
+                        <div className="sb-nav-link-icon text-white">
                             <i className="fas fa-chart-area" />
                         </div>
                         Members

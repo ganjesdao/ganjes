@@ -17,7 +17,7 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
       setContractAddress(address);
       console.log(`Network changed to: ${network.chainName}`);
       console.log(`Contract address: ${address}`);
-      
+
       // Pass network info to parent component
       if (onNetworkChange) {
         onNetworkChange(network);
@@ -58,7 +58,7 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
 
     // Cleanup listener on unmount
     return () => {
-      window.ethereum?.removeListener('accountsChanged', () => {});
+      window.ethereum?.removeListener('accountsChanged', () => { });
     };
   }, []);
 
@@ -76,16 +76,23 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
 
       setWalletAddress(accounts[0]);
       console.log('Wallet connected:', accounts[0]);
-      
+
       // Check current network after connecting
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
       console.log('Current network chain ID:', chainId);
-      
+
     } catch (err) {
       console.error("Wallet connection failed:", err);
       alert("Wallet connection failed. Please try again.");
     }
   };
+
+
+  const logout = async () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.reload();
+  }
 
   return (
     <nav className="sb-topnav navbar navbar-expand navbar-dark bg-dark br-bottom-1">
@@ -104,10 +111,10 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
       {/* Network Switcher and Wallet Button Container */}
       <div className="d-flex align-items-center ms-auto gap-2">
         {/* Network Switcher */}
-        <SimpleNetworkSwitcher 
+        <SimpleNetworkSwitcher
           onNetworkChange={handleNetworkChange}
         />
-        
+
         {/* Connect Wallet Button */}
         <button
           onClick={connectWallet}
@@ -152,7 +159,7 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
               <hr className="dropdown-divider" />
             </li>
             <li>
-              <a className="dropdown-item" href="#!">
+              <a className="dropdown-item" href="#!" onClick={() => logout()}>
                 Logout
               </a>
             </li>

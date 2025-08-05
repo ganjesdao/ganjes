@@ -7,7 +7,7 @@ function Auth({ onProfileDataFetched }) {
   const handleLogout = () => {
     sessionStorage.removeItem('authToken'); // Ensure token is removed
     localStorage.clear();
-    window.location.href = "/signin";
+    window.location.href = "/investor-login";
   };
 
   useEffect(() => {

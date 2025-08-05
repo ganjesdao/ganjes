@@ -9,13 +9,20 @@ function Header({ setIsToggle, onNetworkChange }) {
   // Handle network change from SimpleNetworkSwitcher
   const handleNetworkChange = (network) => {
     console.log(`Network changed to: ${network?.chainName}`);
-    
+
     // Pass network info to parent component
     if (onNetworkChange) {
       onNetworkChange(network);
     }
   };
 
+  const logout = () => {
+    localStorage.removeItem('walletAddress');
+    sessionStorage.clear();
+    localStorage.clear();
+    window.location.reload();
+
+  };
 
   return (
     <nav className="sb-topnav navbar navbar-expand navbar-dark bg-dark br-bottom-1">
@@ -24,7 +31,7 @@ function Header({ setIsToggle, onNetworkChange }) {
       </a>
 
       <button
-        className="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0"
+        className="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0 text-white order-1 order-lg-0"
         id="sidebarToggle"
         onClick={() => setIsToggle(prev => !prev)}
       >
@@ -34,10 +41,10 @@ function Header({ setIsToggle, onNetworkChange }) {
       {/* Network Switcher and Wallet Button Container */}
       <div className="d-flex align-items-center ms-auto gap-2">
         {/* Network Switcher */}
-        <SimpleNetworkSwitcher 
+        <SimpleNetworkSwitcher
           onNetworkChange={handleNetworkChange}
         />
-        
+
         {/* Connect Wallet Button */}
         <button
           onClick={connectWallet}
@@ -82,7 +89,7 @@ function Header({ setIsToggle, onNetworkChange }) {
               <hr className="dropdown-divider" />
             </li>
             <li>
-              <a className="dropdown-item" href="#!">
+              <a className="dropdown-item" href="#!" onClick={() => logout()}>
                 Logout
               </a>
             </li>
