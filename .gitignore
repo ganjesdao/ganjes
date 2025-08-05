@@ -22,14 +22,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 # Ignore AI-generated or internal documentation files
-ADMIN_SECTION_PRD.md
-ChartJS_Error_Fix_Summary.md
-CLAUDE.md
-DOM_Error_Fix_Summary.md
-MARKETPLACE_FEATURES.md
-PROJECT_CREATE_README.md
-PROPOSAL_UI_IMPROVEMENTS.md
-Proposals_Section_Implementation.md
+
+
 
 
 
