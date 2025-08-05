@@ -21,8 +21,8 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-# Ignore AI-generated or internal documentation files
-
+# Ignore all markdown files (AI-generated or docs)
+*.md
 
 
 
