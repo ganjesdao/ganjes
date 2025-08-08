@@ -6,11 +6,10 @@ import Auth from '../../Auth/Auth';
 import Sidebar from './component/Sidebar';
 import Footer from './component/Footer';
 import { toast } from 'react-toastify';
-import { getContractAddress, getGasPrice, isTestnet } from '../../utils/networks';
+import { getContractAddress, getRpcUrl, isTestnet } from '../../utils/networks';
+import { tokenABI } from '../../utils/Tokenabi';
 
 // ERC20 ABI for token operations
-const tokenABI = [{ "inputs": [{ "internalType": "address[]", "name": "_owners", "type": "address[]" }, { "internalType": "uint256", "name": "_requiredConfirmations", "type": "uint256" }], "stateMutability": "nonpayable", "type": "constructor" }, { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "owner", "type": "address" }, { "indexed": true, "internalType": "address", "name": "spender", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "value", "type": "uint256" }], "name": "Approval", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "from", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "value", "type": "uint256" }], "name": "Burn", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": false, "internalType": "string", "name": "action", "type": "string" }, { "indexed": true, "internalType": "address", "name": "executor", "type": "address" }], "name": "EmergencyAction", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "owner", "type": "address" }], "name": "OwnerAddition", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "owner", "type": "address" }], "name": "OwnerRemoval", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": false, "internalType": "address", "name": "account", "type": "address" }], "name": "Paused", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": false, "internalType": "uint256", "name": "required", "type": "uint256" }], "name": "RequirementChange", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "transactionId", "type": "uint256" }, { "indexed": true, "internalType": "address", "name": "owner", "type": "address" }], "name": "TransactionConfirmation", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "transactionId", "type": "uint256" }], "name": "TransactionExecution", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "transactionId", "type": "uint256" }], "name": "TransactionFailure", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "transactionId", "type": "uint256" }, { "indexed": true, "internalType": "address", "name": "owner", "type": "address" }], "name": "TransactionRevocation", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "transactionId", "type": "uint256" }, { "indexed": true, "internalType": "address", "name": "submitter", "type": "address" }, { "indexed": false, "internalType": "string", "name": "description", "type": "string" }], "name": "TransactionSubmission", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "from", "type": "address" }, { "indexed": true, "internalType": "address", "name": "to", "type": "address" }, { "indexed": false, "internalType": "uint256", "name": "value", "type": "uint256" }], "name": "Transfer", "type": "event" }, { "anonymous": false, "inputs": [{ "indexed": false, "internalType": "address", "name": "account", "type": "address" }], "name": "Unpaused", "type": "event" }, { "inputs": [], "name": "FIXED_SUPPLY", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" }, { "inputs": [], "name": "TIMELOCK_DELAY", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "owner", "type": "address" }, { "internalType": "address", "name": "spender", "type": "address" }], "name": "allowance", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "spender", "type": "address" }, { "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "approve", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "account", "type": "address" }], "name": "balanceOf", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "burn", "outputs": [], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "account", "type": "address" }, { "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "burnFrom", "outputs": [], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [{ "internalType": "uint256", "name": "transactionId", "type": "uint256" }], "name": "canExecute", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "internalType": "uint256", "name": "transactionId", "type": "uint256" }], "name": "confirmTransaction", "outputs": [], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }, { "internalType": "address", "name": "", "type": "address" }], "name": "confirmations", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" }, { "inputs": [], "name": "createEmergencyPauseTransaction", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "createPauseTransaction", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "createUnpauseTransaction", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "decimals", "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }], "stateMutability": "pure", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "spender", "type": "address" }, { "internalType": "uint256", "name": "subtractedValue", "type": "uint256" }], "name": "decreaseAllowance", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "emergencyPause", "outputs": [], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "emergencyWithdraw", "outputs": [], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [{ "internalType": "uint256", "name": "transactionId", "type": "uint256" }], "name": "executeTransaction", "outputs": [], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [{ "internalType": "uint256", "name": "transactionId", "type": "uint256" }], "name": "getConfirmationCount", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }, { "inputs": [], "name": "getContractInfo", "outputs": [{ "internalType": "string", "name": "", "type": "string" }], "stateMutability": "pure", "type": "function" }, { "inputs": [], "name": "getGovernanceInfo", "outputs": [{ "internalType": "uint256", "name": "totalOwners", "type": "uint256" }, { "internalType": "uint256", "name": "requiredSigs", "type": "uint256" }, { "internalType": "uint256", "name": "timelockDelay", "type": "uint256" }, { "internalType": "uint256", "name": "pendingTransactions", "type": "uint256" }], "stateMutability": "view", "type": "function" }, { "inputs": [], "name": "getOwner", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" }, { "inputs": [], "name": "getOwners", "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }], "stateMutability": "view", "type": "function" }, { "inputs": [], "name": "getTransactionCount", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "spender", "type": "address" }, { "internalType": "uint256", "name": "addedValue", "type": "uint256" }], "name": "increaseAllowance", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [{ "internalType": "uint256", "name": "transactionId", "type": "uint256" }], "name": "isConfirmed", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "", "type": "address" }], "name": "isOwner", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" }, { "inputs": [], "name": "name", "outputs": [{ "internalType": "string", "name": "", "type": "string" }], "stateMutability": "pure", "type": "function" }, { "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "name": "owners", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" }, { "inputs": [], "name": "pause", "outputs": [], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "paused", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" }, { "inputs": [], "name": "requiredConfirmations", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "internalType": "uint256", "name": "transactionId", "type": "uint256" }], "name": "revokeConfirmation", "outputs": [], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "to", "type": "address" }, { "internalType": "bytes", "name": "data", "type": "bytes" }, { "internalType": "string", "name": "description", "type": "string" }], "name": "submitTransaction", "outputs": [{ "internalType": "uint256", "name": "transactionId", "type": "uint256" }], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "symbol", "outputs": [{ "internalType": "string", "name": "", "type": "string" }], "stateMutability": "pure", "type": "function" }, { "inputs": [], "name": "totalSupply", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "name": "transactions", "outputs": [{ "internalType": "address", "name": "to", "type": "address" }, { "internalType": "bytes", "name": "data", "type": "bytes" }, { "internalType": "bool", "name": "executed", "type": "bool" }, { "internalType": "uint256", "name": "confirmations", "type": "uint256" }, { "internalType": "uint256", "name": "timestamp", "type": "uint256" }, { "internalType": "string", "name": "description", "type": "string" }], "stateMutability": "view", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "recipient", "type": "address" }, { "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "transfer", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [{ "internalType": "address", "name": "sender", "type": "address" }, { "internalType": "address", "name": "recipient", "type": "address" }, { "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "transferFrom", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "nonpayable", "type": "function" }, { "inputs": [], "name": "unpause", "outputs": [], "stateMutability": "nonpayable", "type": "function" }];
-
 
 function CreateProposal() {
     const [description, setDescription] = useState("");
@@ -26,6 +25,10 @@ function CreateProposal() {
     const [tokenSymbol, setTokenSymbol] = useState("GNJ");
     const [tokenDecimals, setTokenDecimals] = useState(18);
     const [tokenContract, setTokenContract] = useState(null);
+    const [proposalDeposit, setProposalDeposit] = useState(null);
+    const [requirements, setRequirements] = useState(null);
+    const [validationErrors, setValidationErrors] = useState([]);
+    const [userAddress, setUserAddress] = useState("");
     const authToken = sessionStorage.getItem('authToken');
     const governanceTokenAddress = process.env.REACT_APP_TOKEN_ADDRESS;
 
@@ -35,8 +38,8 @@ function CreateProposal() {
         if (network) {
             const address = getContractAddress(network.chainId);
             setContractAddress(address);
-            console.log(`Network changed to: ${network.chainName}`);
-            console.log(`Contract address: ${address}`);
+
+            // console.log(`Contract address: ${address}`);
         } else {
             setContractAddress("");
         }
@@ -51,29 +54,101 @@ function CreateProposal() {
         // Optional: Handle Auth result
     };
 
-    // Function to fetch minimum tokens requirement and user's token balance
+    // Enhanced validation function based on Node.js script
+    const validateInputs = (description, projectName, projectUrl, fundingGoal) => {
+        const errors = [];
+
+        if (!description || description.trim().length < 10) {
+            errors.push("Description must be at least 10 characters long");
+        }
+
+        if (!projectName || projectName.trim().length < 2) {
+            errors.push("Project name must be at least 2 characters long");
+        }
+
+        if (!projectUrl || !projectUrl.includes('.')) {
+            errors.push("Project URL must be a valid URL");
+        }
+
+        const fundingGoalNum = parseFloat(fundingGoal);
+        if (isNaN(fundingGoalNum) || fundingGoalNum <= 0) {
+            errors.push("Funding goal must be a positive number");
+        }
+
+        if (fundingGoalNum < 10) {
+            errors.push("Funding goal must be at least 10 tokens");
+        }
+
+        if (fundingGoalNum > 1000000) {
+            errors.push("Funding goal cannot exceed 1,000,000 tokens");
+        }
+
+        return errors;
+    };
+
+    // Function to fetch comprehensive proposal requirements
     const fetchTokenRequirements = async () => {
         try {
+            console.log("Fetching token requirements...", contractAddress);
             if (!window.ethereum || !contractAddress || !governanceTokenAddress) return;
+
 
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
-            const userAddress = await signer.getAddress();
+            const address = await signer.getAddress();
+            setUserAddress(address);
+
+            console.log("Connected to address:", address);
+
 
             // Get DAO contract instance
             const contract = new ethers.Contract(contractAddress, daoABI, provider);
+
+
+            console.log("✅ Connected to DAO contract", contract);
+
 
             // Get governance token contract instance
             const tokenContractInstance = new ethers.Contract(governanceTokenAddress, tokenABI, provider);
             setTokenContract(tokenContractInstance);
 
-            // Fetch minimum tokens required for proposal
+            // Fetch comprehensive requirements
             const minTokens = await contract.MIN_TOKENS_FOR_PROPOSAL();
             setMinTokensForProposal(minTokens);
 
-            // Fetch user's token balance
-            const balance = await tokenContractInstance.balanceOf(userAddress);
+            console.log(`Proposal Token fee: ${ethers.formatEther(minTokens)} tokens`);
+
+            const deposit = await contract.PROPOSAL_CREATION_FEE();
+
+            console.log(`Proposal Creation Fee: ${ethers.formatEther(deposit)} tokens`);
+            setProposalDeposit(deposit);
+
+            const balance = await tokenContractInstance.balanceOf(address);
+
+            console.log(`User's token balance: ${formatTokenAmount(balance)} ${tokenSymbol}`);
+
             setUserTokenBalance(balance);
+
+            // Check proposal requirements (if method exists)
+            try {
+                const reqCheck = await contract.checkProposalRequirements(address);
+                setRequirements(reqCheck);
+            } catch (error) {
+                console.warn("checkProposalRequirements method not available:", error);
+                // Fallback: create basic requirements check
+                const allowance = await tokenContractInstance.allowance(address, contractAddress);
+                const requirementsObj = {
+                    canCreateProposal: balance >= minTokens && allowance >= deposit,
+                    hasMinTokens: balance >= minTokens,
+                    hasDepositTokens: balance >= deposit,
+                    hasAllowance: allowance >= deposit,
+                    cooldownPassed: true, // Assume true if we can't check
+                    belowMaxProposals: true, // Assume true if we can't check
+                    statusMessage: balance >= minTokens ? (allowance >= deposit ? "Ready to create proposal" : "Need token approval") : "Insufficient tokens"
+                };
+
+                setRequirements(requirementsObj);
+            }
 
             // Fetch token symbol and decimals for display
             try {
@@ -87,13 +162,13 @@ function CreateProposal() {
 
         } catch (error) {
             console.error("Error fetching token requirements:", error);
-            toast.error("Failed to fetch token requirements");
+            // toast.error("Failed to fetch token requirements");
         }
     };
 
-    // Check if user has enough tokens for proposal creation
+    // Check if user has enough tokens for proposal creation (enhanced with requirements check)
     const hasEnoughTokensForProposal = () => {
-        return userTokenBalance && minTokensForProposal && userTokenBalance >= minTokensForProposal;
+        return requirements?.hasMinTokens || (userTokenBalance && minTokensForProposal && userTokenBalance >= minTokensForProposal);
     };
 
     // Format token amount for display
@@ -104,45 +179,42 @@ function CreateProposal() {
 
     // Effect to fetch token requirements when network/contract changes
     useEffect(() => {
+
         if (currentNetwork && contractAddress && governanceTokenAddress) {
+
+
+            // console.log(`Using contract address: ${contractAddress}`);
             fetchTokenRequirements();
+
         }
     }, [currentNetwork, contractAddress, governanceTokenAddress]);
 
     const createProject = async (e) => {
         e.preventDefault(); // Prevent form submission refresh
 
-        // Input validation
+        // console.log("🚀 Ganjes DAO Proposal Creation Tool");
+        // console.log("=====================================\n");
+        // console.log("📝 Using account:", userAddress);
 
-        if (!projectName || projectName.trim() === "") {
-            toast.error("Project name cannot be empty!");
+        // Enhanced input validation
+        const errors = validateInputs(description, projectName, projectUrl, fundingGoal);
+        setValidationErrors(errors);
+
+        if (errors.length > 0) {
+            // console.log("❌ Validation errors:");
+            errors.forEach(error => {
+                // console.log(`  - ${error}`);
+                toast.error(error);
+            });
             return;
         }
 
-
-        if (!description || description.trim() === "") {
-            toast.error("Description cannot be empty!");
-            return;
-        }
-
-        if (!projectUrl || projectUrl.trim() === "") {
-            toast.error("Project URL cannot be empty!");
-            return;
-        }
-        if (!fundingGoal || isNaN(fundingGoal) || Number(fundingGoal) <= 0) {
-            toast.error("Funding goal must be a positive number!");
-            return;
-        }
-
-        // Check if user has enough tokens for proposal creation
-        if (!hasEnoughTokensForProposal()) {
-            const requiredTokens = formatTokenAmount(minTokensForProposal);
-            const currentBalance = formatTokenAmount(userTokenBalance);
-            toast.error(
-                `🪙 Insufficient ${tokenSymbol} tokens to create a proposal!\n` +
-                `Required: ${requiredTokens} ${tokenSymbol}\n` +
-                `Your Balance: ${currentBalance} ${tokenSymbol}`
-            );
+        // Check if we need approval first
+        if (!requirements?.hasAllowance && requirements?.hasMinTokens && requirements?.hasDepositTokens) {
+            // Allow approval process to continue
+            // console.log("🔐 User needs to approve tokens first");
+        } else if (!requirements?.canCreateProposal) {
+            toast.error(`❌ Cannot create proposal: ${requirements?.statusMessage || 'Requirements not met'}`);
             return;
         }
 
@@ -170,26 +242,79 @@ function CreateProposal() {
             // Convert fundingGoal to Wei (works for both ETH and BNB, both have 18 decimals)
             const fundingGoalInWei = ethers.parseEther(fundingGoal.toString());
 
-            // Get network-specific gas settings
-            const gasPrice = getGasPrice(currentNetwork.chainId);
 
-            // Estimate gas for the transaction
-            const gasEstimate = await contract.createProposal.estimateGas(
-                description,
-                projectName,
-                projectUrl,
-                fundingGoalInWei
-            );
+            // Check and handle token approval if needed
+            if (!requirements?.hasAllowance) {
+                // console.log("\n🔐 Approving DAO to spend tokens...");
+                toast.info("🔐 Approving DAO to spend 100 tokens...");
+                const approveTx = await tokenContract.connect(signer).approve(contractAddress, proposalDeposit);
+                // console.log("📄 Approval transaction sent:", approveTx.hash);
+                await approveTx.wait();
+                // console.log("✅ Approval transaction confirmed\n");
+                toast.success("✅ Token approval confirmed! You can now create proposals.");
 
-            // Call createProposal function with network-optimized gas settings
+                // Refresh requirements after approval
+                await fetchTokenRequirements();
+                setLoading(false);
+                return; // Stop here, user needs to click create again
+            }
+
+            // Log current requirements for debugging
+            // console.log("📋 Current requirements:", requirements);
+
+            // Pre-flight checks before creating proposal
+            const currentBalance = await tokenContract.balanceOf(userAddress);
+            const currentAllowance = await tokenContract.allowance(userAddress, contractAddress);
+
+            // console.log("🔍 Pre-flight checks:");
+            // console.log("  - User Balance:", ethers.formatEther(currentBalance), tokenSymbol);
+            // console.log("  - Current Allowance:", ethers.formatEther(currentAllowance), tokenSymbol);
+            // console.log("  - Required Deposit:", ethers.formatEther(proposalDeposit), tokenSymbol);
+            // console.log("  - Min Tokens Required:", ethers.formatEther(minTokensForProposal), tokenSymbol);
+
+            // Check if user still has enough balance
+            if (currentBalance < minTokensForProposal) {
+                throw new Error(`Insufficient token balance. Required: ${ethers.formatEther(minTokensForProposal)} ${tokenSymbol}, Current: ${ethers.formatEther(currentBalance)} ${tokenSymbol}`);
+            }
+
+            // Check if allowance is sufficient
+            if (currentAllowance < proposalDeposit) {
+                throw new Error(`Insufficient token allowance. Required: ${ethers.formatEther(proposalDeposit)} ${tokenSymbol}, Current: ${ethers.formatEther(currentAllowance)} ${tokenSymbol}`);
+            }
+
+            // Display proposal summary before creation
+            // console.log("\n📋 Proposal Summary:");
+            // console.log("  - Project Name:", projectName);
+            // console.log("  - Project URL:", projectUrl);
+            // console.log("  - Funding Goal:", ethers.formatEther(fundingGoalInWei), "tokens");
+            // console.log("  - Required Deposit:", ethers.formatEther(proposalDeposit), "tokens");
+            // console.log("  - Description:", description.substring(0, 100) + (description.length > 100 ? "..." : ""));
+
+            toast.info("⏳ Creating proposal...");
+
+            // Try to estimate gas first
+            let gasEstimate;
+            try {
+                gasEstimate = await contract.createProposal.estimateGas(
+                    description,
+                    projectName,
+                    projectUrl,
+                    fundingGoalInWei
+                );
+                // console.log("⛽ Gas estimate:", gasEstimate.toString());
+            } catch (estimateError) {
+                console.error("❌ Gas estimation failed:", estimateError);
+                throw new Error(`Gas estimation failed: ${estimateError.reason || estimateError.message}`);
+            }
+
+            // Call createProposal function with estimated gas + buffer
             const tx = await contract.createProposal(
                 description,
                 projectName,
                 projectUrl,
                 fundingGoalInWei,
                 {
-                    gasLimit: gasEstimate + (gasEstimate / 5n), // Add 20% buffer (gasEstimate * 1.2)
-                    gasPrice: ethers.parseUnits(gasPrice, "gwei"), // Network-specific gas price
+                    gasLimit: gasEstimate + (gasEstimate / 5n), // Add 20% buffer
                 }
             );
 
@@ -197,20 +322,55 @@ function CreateProposal() {
             toast.info(`🚀 Transaction sent! Hash: ${tx.hash}`);
             toast.info(`⏳ Waiting for confirmation on ${currentNetwork.chainName}...`);
 
+            // console.log("⏳ Waiting for transaction confirmation...");
             const receipt = await tx.wait();
 
-            // Success notification with explorer link
-            const explorerUrl = `${currentNetwork.blockExplorerUrls[0]}/tx/${tx.hash}`;
-            toast.success(
-                `🎉 Project created successfully! Gas used: ${receipt.gasUsed.toString()}`
+            // Find ProposalCreated event
+            const proposalCreatedEvent = receipt.logs.find(
+                log => {
+                    try {
+                        const parsed = contract.interface.parseLog(log);
+                        return parsed.name === "ProposalCreated";
+                    } catch {
+                        return false;
+                    }
+                }
             );
-            toast.info(
-                <div>
-                    📄 <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'white', textDecoration: 'underline' }}>
-                        View transaction on {currentNetwork.chainName}
-                    </a>
-                </div>
-            );
+
+            if (proposalCreatedEvent) {
+                const decodedEvent = contract.interface.parseLog(proposalCreatedEvent);
+                const proposalId = decodedEvent.args.proposalId;
+
+                // console.log("\n🎉 Proposal Created Successfully!");
+                // console.log("=====================================");
+                // console.log("  - Proposal ID:", proposalId.toString());
+                // console.log("  - Transaction Hash:", receipt.hash);
+                // console.log("  - Block Number:", receipt.blockNumber);
+                // console.log("  - Gas Used:", receipt.gasUsed.toString());
+
+                // Enhanced success notification
+                const explorerUrl = `${currentNetwork.blockExplorerUrls[0]}/tx/${tx.hash}`;
+                toast.success(
+                    `🎉 Proposal Created Successfully! ID: ${proposalId.toString()}`
+                );
+                toast.info(
+                    `📊 Gas used: ${receipt.gasUsed.toString()}`
+                );
+                toast.info(
+                    <div>
+                        📄 <a href={explorerUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'white', textDecoration: 'underline' }}>
+                            View transaction on {currentNetwork.chainName}
+                        </a>
+                    </div>
+                );
+
+                // Show next steps
+                toast.info(
+                    "📝 Next Steps: Share your proposal ID with potential investors and promote your project!"
+                );
+            } else {
+                throw new Error("❌ ProposalCreated event not found in transaction receipt");
+            }
 
             // Reset form
             setDescription("");
@@ -221,24 +381,52 @@ function CreateProposal() {
             // Refresh token balance after successful proposal creation
             fetchTokenRequirements();
         } catch (error) {
-            console.error("Error creating project:", error);
-            // Handle specific network and general errors
+            console.error("\n❌ Error creating proposal:", error);
+
+            // Enhanced error handling with more specific checks
             if (error.code === 4001) {
                 toast.error("❌ Transaction rejected by user!");
+            } else if (error.code === 'CALL_EXCEPTION' || error.receipt?.status === 0) {
+                console.error("\n💡 Transaction reverted. Common issues:");
+                console.error("  - Insufficient token balance for deposit");
+                console.error("  - DAO contract not approved to spend tokens");
+                console.error("  - Proposal cooldown period still active");
+                console.error("  - Maximum proposals per user reached");
+                console.error("  - Invalid funding goal (too high/low)");
+                console.error("  - Contract is paused");
+                console.error("  - Invalid parameter values");
+
+                // Check specific error messages
+                const errorMsg = error.reason || error.message || 'Unknown error';
+                if (errorMsg.includes('allowance') || errorMsg.includes('approved')) {
+                    toast.error("❌ Token allowance issue. Please refresh and try approving tokens again.");
+                } else if (errorMsg.includes('balance') || errorMsg.includes('insufficient')) {
+                    toast.error("❌ Insufficient token balance for proposal deposit.");
+                } else if (errorMsg.includes('cooldown') || errorMsg.includes('wait')) {
+                    toast.error("❌ Proposal cooldown period active. Please wait before creating another proposal.");
+                } else {
+                    toast.error(`❌ Transaction reverted: ${errorMsg}`);
+                }
+
+                // Refresh requirements to get updated status
+                await fetchTokenRequirements();
+            } else if (error.code === 'INSUFFICIENT_FUNDS') {
+                console.error("💡 You don't have enough tokens for the transaction");
+                toast.error("💰 Insufficient funds for transaction fees!");
             } else if (error.code === -32000) {
                 const currency = currentNetwork?.nativeCurrency?.symbol || 'tokens';
                 toast.error(`⛽ Insufficient ${currency} for gas fees. ${isTestnet(currentNetwork?.chainId) ? 'Get test tokens from faucet!' : 'Add more tokens to your wallet!'}`);
             } else if (error.message.includes("insufficient funds")) {
                 const currency = currentNetwork?.nativeCurrency?.symbol || 'tokens';
                 toast.error(`💰 Insufficient ${currency} balance for transaction fees!`);
-            } else if (error.message.includes("Insufficient tokens to propose")) {
-                toast.error("🪙 You don't have enough tokens to create a project!");
-            } else if (error.message.includes("Funding goal must be greater than zero")) {
-                toast.error("📊 Funding goal must be greater than zero!");
+            } else if (error.message.includes("Gas estimation failed")) {
+                toast.error(`⛽ ${error.message}`);
+            } else if (error.message.includes("Insufficient token")) {
+                toast.error(error.message);
             } else if (error.message.includes("network")) {
                 toast.error(`🌐 Network error. Please check your ${currentNetwork?.chainName} connection!`);
             } else {
-                toast.error(`❌ Failed to create project: ${error.message || 'Unknown error'}`);
+                toast.error(`❌ Failed to create proposal: ${error.message || 'Unknown error'}`);
             }
         } finally {
             setLoading(false);
@@ -348,77 +536,124 @@ function CreateProposal() {
                                             </div>
                                         </div>
 
-                                        {/* Token Requirements Section */}
+                                        {/* Enhanced Requirements Section */}
                                         {currentNetwork && contractAddress && (
                                             <div className="row mt-3">
                                                 <div className="col-12">
                                                     <div className="card">
                                                         <div className="card-header d-flex justify-content-between align-items-center">
                                                             <h5 className="card-title mb-0">
-                                                                🪙 Token Requirements for Proposal Creation
+                                                                📋 Proposal Requirements & Status
                                                             </h5>
                                                             <button
                                                                 type="button"
                                                                 onClick={fetchTokenRequirements}
                                                                 className="btn btn-sm btn-outline-primary"
-                                                                title="Refresh token balance"
+                                                                title="Refresh requirements"
                                                             >
                                                                 🔄 Refresh
                                                             </button>
                                                         </div>
                                                         <div className="card-body">
-                                                            <div className="row">
-                                                                <div className="col-md-6">
-                                                                    <div className="d-flex justify-content-between align-items-center mb-2">
-                                                                        <span>📝 Required for Proposal:</span>
-                                                                        <strong className="text-primary">
-                                                                            {minTokensForProposal ?
-                                                                                `${formatTokenAmount(minTokensForProposal)} ${tokenSymbol}` :
-                                                                                "Loading..."
-                                                                            }
-                                                                        </strong>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="col-md-6">
-                                                                    <div className="d-flex justify-content-between align-items-center mb-2">
-                                                                        <span>💰 Your Balance:</span>
-                                                                        <strong className={hasEnoughTokensForProposal() ? "text-success" : "text-danger"}>
-                                                                            {userTokenBalance ?
-                                                                                `${formatTokenAmount(userTokenBalance)} ${tokenSymbol}` :
-                                                                                "Loading..."
-                                                                            }
-                                                                        </strong>
+                                                            {/* Account Status */}
+                                                            <div className="row mb-3">
+                                                                <div className="col-12">
+                                                                    <h6>💳 Account Status:</h6>
+                                                                    <div className="row">
+                                                                        <div className="col-md-4">
+                                                                            <div className="d-flex justify-content-between">
+                                                                                <span>Token Balance:</span>
+                                                                                <strong className={hasEnoughTokensForProposal() ? "text-success" : "text-danger"}>
+                                                                                    {userTokenBalance ? `${formatTokenAmount(userTokenBalance)} ${tokenSymbol}` : `0 ${tokenSymbol}`}
+                                                                                </strong>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="col-md-4">
+                                                                            <div className="d-flex justify-content-between">
+                                                                                <span>Required Deposit:</span>
+                                                                                <strong className="text-primary">
+                                                                                    {proposalDeposit ? `${formatTokenAmount(proposalDeposit)} ${tokenSymbol}` : "Loading..."}
+                                                                                </strong>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="col-md-4">
+                                                                            <div className="d-flex justify-content-between">
+                                                                                <span>Min Required:</span>
+                                                                                <strong className="text-primary">
+                                                                                    {minTokensForProposal ? `${formatTokenAmount(minTokensForProposal)} ${tokenSymbol}` : "Loading..."}
+                                                                                </strong>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
 
-                                                            {/* Token Status Indicator */}
-                                                            {minTokensForProposal && userTokenBalance && (
-                                                                <div className="mt-3">
-                                                                    {hasEnoughTokensForProposal() ? (
-                                                                        <div className="alert alert-success mb-0">
-                                                                            ✅ <strong>Eligibility Status:</strong> You have enough {tokenSymbol} tokens to create a proposal!
+                                                            {/* Requirements Checklist */}
+                                                            {requirements && (
+                                                                <div className="row mb-3">
+                                                                    <div className="col-12">
+                                                                        <h6>📋 Proposal Requirements:</h6>
+                                                                        <div className="row">
+                                                                            <div className="col-md-6">
+                                                                                <div className="d-flex align-items-center mb-2">
+                                                                                    <span className={`me-2 ${requirements.canCreateProposal ? 'text-success' : 'text-danger'}`}>
+                                                                                        {requirements.canCreateProposal ? '✅ Confirm Proposal' : '✅ Can Create Proposal'}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="d-flex align-items-center mb-2">
+                                                                                    <span className={`me-2 ${requirements.hasMinTokens ? 'text-success' : 'text-danger'}`}>
+                                                                                        {requirements.hasMinTokens ? '✅' : '❌'}
+                                                                                    </span>
+                                                                                    <span>Has Min Tokens</span>
+                                                                                </div>
+                                                                                <div className="d-flex align-items-center mb-2">
+                                                                                    <span className={`me-2 ${requirements.hasDepositTokens ? 'text-success' : 'text-danger'}`}>
+                                                                                        {requirements.hasDepositTokens ? '✅' : '❌'}
+                                                                                    </span>
+                                                                                    <span>Has Deposit Tokens</span>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="col-md-6">
+                                                                                <div className="d-flex align-items-center mb-2">
+                                                                                    <span className={`me-2 ${requirements.hasAllowance ? 'text-success' : 'text-warning'}`}>
+                                                                                        {requirements.hasAllowance ? '✅' : '⚠️'}
+                                                                                    </span>
+                                                                                    <span>Has Allowance</span>
+                                                                                </div>
+                                                                                <div className="d-flex align-items-center mb-2">
+                                                                                    <span className={`me-2 ${requirements.cooldownPassed ? 'text-success' : 'text-warning'}`}>
+                                                                                        {requirements.cooldownPassed ? '✅' : '⏰'}
+                                                                                    </span>
+                                                                                    <span>Cooldown Passed</span>
+                                                                                </div>
+                                                                                <div className="d-flex align-items-center mb-2">
+                                                                                    <span className={`me-2 ${requirements.belowMaxProposals ? 'text-success' : 'text-warning'}`}>
+                                                                                        {requirements.belowMaxProposals ? '✅' : '🚫'}
+                                                                                    </span>
+                                                                                    <span>Below Max Proposals</span>
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
-                                                                    ) : (
-                                                                        <div className="alert alert-danger mb-0">
-                                                                            ❌ <strong>Insufficient Tokens:</strong> You need {formatTokenAmount(minTokensForProposal - userTokenBalance)} more {tokenSymbol} tokens to create a proposal.
-                                                                            <br />
-                                                                            <small className="text-muted">
-                                                                                💡 <strong>Tip:</strong> {tokenSymbol} tokens are required for governance participation. You can earn them by contributing to the ecosystem or purchase them on supported exchanges.
-                                                                            </small>
+                                                                        <div className="alert alert-info mt-2 mb-0">
+                                                                            <strong>Status:</strong> {requirements.statusMessage}
                                                                         </div>
-                                                                    )}
+                                                                    </div>
                                                                 </div>
                                                             )}
 
-                                                            {/* Additional Information */}
+                                                            {/* Help Section */}
                                                             <div className="mt-3">
-                                                                <small className="text-muted">
-                                                                    📋 <strong>About Token Requirements:</strong><br />
-                                                                    • Proposal Creation: Requires {tokenSymbol} tokens to prevent spam and ensure serious proposals<br />
-                                                                    • Voting: Any {tokenSymbol} token holder can participate in voting<br />
-                                                                    • Voting Power: Your voting power is proportional to your token balance
-                                                                </small>
+                                                                <div className="alert alert-light mb-0">
+                                                                    <h6 className="alert-heading">💡 Proposal Guidelines:</h6>
+                                                                    <ul className="mb-0" style={{ fontSize: '14px' }}>
+                                                                        <li><strong>Minimum:</strong> 10 tokens funding goal</li>
+                                                                        <li><strong>Maximum:</strong> 1,000,000 tokens funding goal</li>
+                                                                        <li><strong>Description:</strong> At least 10 characters</li>
+                                                                        <li><strong>Project Name:</strong> At least 2 characters</li>
+                                                                        <li><strong>URL:</strong> Must be a valid website link</li>
+                                                                        <li><strong>Deposit:</strong> Refunded if proposal fails to pass</li>
+                                                                    </ul>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -429,27 +664,48 @@ function CreateProposal() {
                                         {/* Submit Button */}
                                         <div className="row mt-3">
                                             <div className="col-12">
-                                                <button
-                                                    type="button"
-                                                    onClick={createProject}
-                                                    disabled={loading || !currentNetwork || !contractAddress || !hasEnoughTokensForProposal()}
-                                                    className={`btn ${loading ? 'btn-secondary' : hasEnoughTokensForProposal() ? 'btn-primary' : 'btn-danger'} btn-lg w-100`}
-                                                >
-                                                    {loading ? (
-                                                        <>
-                                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                                            Creating Proposal...
-                                                        </>
-                                                    ) : !hasEnoughTokensForProposal() && userTokenBalance !== null ? (
-                                                        <>
-                                                            🚫 Insufficient {tokenSymbol} Tokens
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            🚀 Create Proposal
-                                                        </>
-                                                    )}
-                                                </button>
+                                                {/* Show approval button if needed */}
+                                                {requirements && !requirements.hasAllowance && requirements.hasMinTokens && requirements.hasDepositTokens ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={createProject}
+                                                        disabled={loading || !currentNetwork || !contractAddress}
+                                                        className={`btn ${loading ? 'btn-secondary' : 'btn-warning'} btn-lg w-100`}
+                                                    >
+                                                        {loading ? (
+                                                            <>
+                                                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                                Approving Tokens...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                🔐 Create Proposal
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={createProject}
+                                                        disabled={loading || !currentNetwork || !contractAddress || !requirements?.canCreateProposal}
+                                                        className={`btn ${loading ? 'btn-secondary' : requirements?.canCreateProposal ? 'btn-primary' : 'btn-danger'} btn-lg w-100`}
+                                                    >
+                                                        {loading ? (
+                                                            <>
+                                                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                                Approve Proposal...
+                                                            </>
+                                                        ) : !requirements?.canCreateProposal && requirements ? (
+                                                            <>
+                                                                🚫 {requirements.statusMessage || 'Requirements Not Met'}
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                🚀 Create Proposal
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

@@ -59,6 +59,12 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, onMobileChange }) => {
       description: 'Manage Investors'
     },
     {
+      name: 'Proposals',
+      path: '/admin/proposal-manager',
+      icon: '📋',
+      description: 'Proposal Management'
+    },
+    {
       name: 'Executed',
       path: '/admin/executed',
       icon: '✅',

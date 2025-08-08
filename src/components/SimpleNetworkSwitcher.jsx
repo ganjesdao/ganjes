@@ -102,8 +102,8 @@ const SimpleNetworkSwitcher = ({ onNetworkChange }) => {
           padding: '6px 12px',
           borderRadius: '6px',
           border: '1px solid #495057',
-          backgroundColor: 'transparent',
-          color: '#ffffff',
+          backgroundColor: '#089669',
+          color: '#f1f1f1ff',
           minWidth: '120px'
         }}
       >

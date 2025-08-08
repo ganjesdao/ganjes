@@ -15,8 +15,8 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
     if (network) {
       const address = getContractAddress(network.chainId);
       setContractAddress(address);
-      console.log(`Network changed to: ${network.chainName}`);
-      console.log(`Contract address: ${address}`);
+      // console.log`Network changed to: ${network.chainName}`);
+      // console.log`Contract address: ${address}`);
 
       // Pass network info to parent component
       if (onNetworkChange) {
@@ -75,11 +75,11 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
       });
 
       setWalletAddress(accounts[0]);
-      console.log('Wallet connected:', accounts[0]);
+      // console.log'Wallet connected:', accounts[0]);
 
       // Check current network after connecting
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-      console.log('Current network chain ID:', chainId);
+      // console.log'Current network chain ID:', chainId);
 
     } catch (err) {
       console.error("Wallet connection failed:", err);

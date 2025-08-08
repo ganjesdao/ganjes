@@ -10,10 +10,28 @@ import PageHeader from '../common/PageHeader';
 import SearchBar from '../common/SearchBar';
 import MobileTable from '../common/MobileTable';
 import { useDAOData } from '../../hooks/useDAOData';
+import { SecureFetch } from '../../../utils/securityHeaders';
+import { TokenManager } from '../../../utils/secureStorage';
 
 const Investors = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const { currentNetwork } = useSelector(state => state.auth);
+  const [apiInvestors, setApiInvestors] = useState([]);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState(null);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    per_page: 10,
+    current_page: 1,
+    last_page: 1,
+    next_page_url: null,
+    prev_page_url: null
+  });
+  const { currentNetwork, token, isAuthenticated } = useSelector(state => state.auth);
+  const baseUrl = process.env.REACT_APP_BASE_API_URL;
+
+  useEffect(() => {
+    fetchInvestors();
+  }, []);
 
   // Use real DAO data
   const {
@@ -53,8 +71,92 @@ const Investors = () => {
     }
   ];
 
-  // Use real data if available, otherwise fallback
-  const displayInvestors = investors && investors.length > 0 ? investors : fallbackInvestors;
+  const fetchInvestors = async (page = 1) => {
+    try {
+      setApiLoading(true);
+      setApiError(null);
+
+      // Check authentication first
+      if (!isAuthenticated) {
+        setApiError('User not authenticated');
+        return;
+      }
+
+      // Get current token from TokenManager as fallback
+      const currentToken = token || TokenManager.getAuthToken();
+
+      if (!currentToken) {
+        setApiError('No valid auth token available');
+        return;
+      }
+
+      const response = await SecureFetch.fetch(
+        `${baseUrl}/admin/investor?page=${page}`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}) // Empty body for POST request
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.status) {
+        console.log("Investors fetched successfully:", result.data);
+        setApiInvestors(result.data || []);
+        
+        // Update pagination state
+        if (result.pagination) {
+          setPagination({
+            total: result.pagination.total,
+            per_page: result.pagination.per_page,
+            current_page: result.pagination.current_page,
+            last_page: result.pagination.last_page,
+            next_page_url: result.pagination.next_page_url,
+            prev_page_url: result.pagination.prev_page_url
+          });
+        }
+      } else {
+        console.error("Failed to fetch investors:", result.message);
+        setApiError(result.message || 'Failed to fetch investors');
+      }
+
+    } catch (err) {
+      console.error('Error fetching investors:', err.message);
+      setApiError(err.message);
+
+      // Handle token expiration
+      if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+        console.warn('Token may be expired, please re-authenticate');
+      }
+    } finally {
+      setApiLoading(false);
+    }
+  };
+
+  // Use API data first, then blockchain data, then fallback
+  const displayInvestors = apiInvestors && apiInvestors.length > 0
+    ? apiInvestors.map((investor, index) => ({
+      ...investor,
+      id: investor.id || index + 1,
+      name: investor.name || investor.username || `Investor ${index + 1}`,
+      email: investor.email || `investor${index + 1}@dao.com`,
+      walletAddress: investor.walletAddress || investor.address || investor.wallet,
+      tokenBalance: investor.tokenBalance || investor.balance || 0,
+      totalInvested: investor.totalInvested || investor.invested || 0,
+      activeInvestments: investor.activeInvestments || investor.investments || 0,
+      votingPower: investor.votingPower || investor.tokenBalance || investor.balance || 0,
+      status: investor.status || 'active',
+      joinDate: investor.joinDate || investor.createdAt || new Date().toISOString().split('T')[0]
+    }))
+    : investors && investors.length > 0 ? investors : fallbackInvestors;
 
   const filteredInvestors = displayInvestors.filter(investor =>
     (investor.name && investor.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -97,6 +199,123 @@ const Investors = () => {
   const handleRowAction = (action, row) => {
     console.log(`${action} action for investor:`, row);
     // TODO: Implement actual actions
+  };
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= pagination.last_page && page !== pagination.current_page) {
+      fetchInvestors(page);
+    }
+  };
+
+  const PaginationComponent = () => {
+    const { current_page, last_page, total, per_page } = pagination;
+    
+    if (last_page <= 1) return null;
+
+    const startItem = (current_page - 1) * per_page + 1;
+    const endItem = Math.min(current_page * per_page, total);
+
+    const getVisiblePages = () => {
+      const visiblePages = [];
+      const maxVisible = 5;
+      
+      if (last_page <= maxVisible) {
+        for (let i = 1; i <= last_page; i++) {
+          visiblePages.push(i);
+        }
+      } else {
+        if (current_page <= 3) {
+          for (let i = 1; i <= 4; i++) {
+            visiblePages.push(i);
+          }
+          visiblePages.push('...');
+          visiblePages.push(last_page);
+        } else if (current_page >= last_page - 2) {
+          visiblePages.push(1);
+          visiblePages.push('...');
+          for (let i = last_page - 3; i <= last_page; i++) {
+            visiblePages.push(i);
+          }
+        } else {
+          visiblePages.push(1);
+          visiblePages.push('...');
+          for (let i = current_page - 1; i <= current_page + 1; i++) {
+            visiblePages.push(i);
+          }
+          visiblePages.push('...');
+          visiblePages.push(last_page);
+        }
+      }
+      
+      return visiblePages;
+    };
+
+    return (
+      <div style={{ marginTop: '2rem' }}>
+        <div className="row align-items-center">
+          <div className="col-md-6 col-12 mb-3 mb-md-0">
+            <div style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+              Showing {startItem} to {endItem} of {total} results
+            </div>
+          </div>
+          <div className="col-md-6 col-12">
+            <nav aria-label="Investors pagination">
+              <ul className="pagination justify-content-md-end justify-content-center mb-0">
+                <li className={`page-item ${current_page === 1 ? 'disabled' : ''}`}>
+                  <button 
+                    className="page-link"
+                    onClick={() => handlePageChange(current_page - 1)}
+                    disabled={current_page === 1}
+                    style={{
+                      border: '1px solid #e5e7eb',
+                      color: current_page === 1 ? '#9ca3af' : '#374151',
+                      background: current_page === 1 ? '#f9fafb' : 'white'
+                    }}
+                  >
+                    Previous
+                  </button>
+                </li>
+                
+                {getVisiblePages().map((page, index) => (
+                  <li key={index} className={`page-item ${page === current_page ? 'active' : ''} ${page === '...' ? 'disabled' : ''}`}>
+                    {page === '...' ? (
+                      <span className="page-link" style={{ border: '1px solid #e5e7eb', color: '#9ca3af' }}>...</span>
+                    ) : (
+                      <button
+                        className="page-link"
+                        onClick={() => handlePageChange(page)}
+                        style={{
+                          border: '1px solid #e5e7eb',
+                          background: page === current_page ? '#3b82f6' : 'white',
+                          color: page === current_page ? 'white' : '#374151'
+                        }}
+                      >
+                        {page}
+                      </button>
+                    )}
+                  </li>
+                ))}
+                
+                <li className={`page-item ${current_page === last_page ? 'disabled' : ''}`}>
+                  <button 
+                    className="page-link"
+                    onClick={() => handlePageChange(current_page + 1)}
+                    disabled={current_page === last_page}
+                    style={{
+                      border: '1px solid #e5e7eb',
+                      color: current_page === last_page ? '#9ca3af' : '#374151',
+                      background: current_page === last_page ? '#f9fafb' : 'white'
+                    }}
+                  >
+                    Next
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const getTableColumns = (isMobile = false) => [
@@ -228,7 +447,7 @@ const Investors = () => {
   const totalInvested = displayInvestors.reduce((sum, investor) => sum + (investor.totalInvested || 0), 0);
   const activeInvestors = displayInvestors.filter(investor => investor.status === 'active').length;
 
-  if (loading) {
+  if (loading || apiLoading) {
     return (
       <AdminPageLayout>
         {({ isMobile }) => (
@@ -385,7 +604,12 @@ const Investors = () => {
             onRowAction={handleRowAction}
           />
 
-          {error && (
+          {/* Pagination Component */}
+          {!loading && !apiLoading && !error && !apiError && apiInvestors.length > 0 && (
+            <PaginationComponent />
+          )}
+
+          {(error || apiError) && (
             <div style={{
               textAlign: 'center',
               padding: '2rem',
@@ -395,9 +619,12 @@ const Investors = () => {
               marginBottom: '1rem'
             }}>
               <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⚠️</div>
-              <p style={{ color: '#dc2626', fontWeight: '500' }}>{error}</p>
+              <p style={{ color: '#dc2626', fontWeight: '500' }}>{error || apiError}</p>
               <button
-                onClick={refreshData}
+                onClick={() => {
+                  refreshData();
+                  fetchInvestors(pagination.current_page);
+                }}
                 style={{
                   marginTop: '1rem',
                   padding: '0.5rem 1rem',
@@ -413,7 +640,7 @@ const Investors = () => {
             </div>
           )}
 
-          {!error && filteredInvestors.length === 0 && (
+          {!error && !apiError && filteredInvestors.length === 0 && (
             <div style={{
               textAlign: 'center',
               padding: '3rem',

@@ -8,19 +8,21 @@ import { useSelector } from 'react-redux';
 import { selectUser } from '../../store/slices/authSlice';
 import AdminNetworkSelector from '../network/AdminNetworkSelector';
 import MetaMaskConnector from '../network/MetaMaskConnector';
+import SimpleNetworkSwitcher from '../../../components/SimpleNetworkSwitcher';
+import { getContractAddress } from '../../../utils/networks';
 
 const AdminHeader = ({
   currentPage,
   isMobile,
   sidebarOpen,
   setSidebarOpen,
-  currentNetwork,
-  contractAddress,
-  onNetworkChange,
-  handleMetaMaskConnected
+  handleMetaMaskConnected,
+  onNetworkChange
 }) => {
   const user = useSelector(selectUser);
   const [isMetaMaskConnected, setIsMetaMaskConnected] = useState(false);
+  const [currentNetwork, setCurrentNetwork] = useState(null); // Initialize with the provided prop
+  const [contractAddress, setContractAddress] = useState(null);
 
   // Check MetaMask connection status
   useEffect(() => {
@@ -28,6 +30,7 @@ const AdminHeader = ({
       if (window.ethereum) {
         try {
           const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          console.log(`Connected accounts: ${accounts}`);
           setIsMetaMaskConnected(accounts.length > 0);
         } catch (error) {
           setIsMetaMaskConnected(false);
@@ -51,6 +54,26 @@ const AdminHeader = ({
       };
     }
   }, []);
+
+  const handleNetworkChange = (network) => {
+    setCurrentNetwork(network);
+    if (network) {
+      const address = getContractAddress(network.chainId);
+      setContractAddress(address);
+      // console.log`Network changed to: ${network.chainName}`);
+      // console.log`Contract address: ${address}`);
+
+      // Pass network info to parent component
+      if (onNetworkChange) {
+        onNetworkChange(network);
+      }
+    } else {
+      // Pass null to parent component when network is not supported
+      if (onNetworkChange) {
+        onNetworkChange(null);
+      }
+    }
+  };
 
   return (
     <header style={{
@@ -160,12 +183,11 @@ const AdminHeader = ({
                   fontWeight: '500',
                   marginBottom: '0.25rem'
                 }}>
-                  NETWORK:
+                  <SimpleNetworkSwitcher
+                    onNetworkChange={handleNetworkChange}
+                  />
                 </span>
-                <AdminNetworkSelector
-                  onNetworkChange={onNetworkChange}
-                  initialNetwork={currentNetwork}
-                />
+
               </>
             ) : (
               <>
@@ -186,30 +208,7 @@ const AdminHeader = ({
           </div>
         )}
 
-        {/* Contract Address Display - Hidden on mobile */}
-        {!isMobile && currentNetwork && contractAddress && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
-            backgroundColor: '#eff6ff',
-            borderRadius: '8px',
-            border: '1px solid #dbeafe'
-          }}>
-            <span style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: '500' }}>
-              CONTRACT:
-            </span>
-            <code style={{
-              fontSize: '0.75rem',
-              color: '#1e40af',
-              backgroundColor: 'transparent',
-              padding: 0
-            }}>
-              {contractAddress.slice(0, 6)}...{contractAddress.slice(-4)}
-            </code>
-          </div>
-        )}
+
 
         {/* User Info */}
         <div style={{

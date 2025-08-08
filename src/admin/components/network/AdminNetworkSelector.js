@@ -36,9 +36,10 @@ const AdminNetworkSelector = ({ onNetworkChange, initialNetwork }) => {
   }, [initialNetwork]);
 
   const handleChainChanged = (chainId) => {
+    console.log('AdminNetworkSelector: Chain changed to:', chainId);
     const network = getNetworkByChainId(chainId);
     setCurrentNetwork(chainId);
-    if (onNetworkChange) {
+    if (onNetworkChange && network) {
       onNetworkChange(network);
     }
   };
@@ -122,9 +123,11 @@ const AdminNetworkSelector = ({ onNetworkChange, initialNetwork }) => {
         // User rejected the request
         toast.warning('Network switch was cancelled by user');
         // Reset select to current network  
+        setCurrentNetwork(currentNetwork);
       } else {
         toast.error(`❌ Failed to switch to ${network.chainName}`);
         // Reset select to current network
+        setCurrentNetwork(currentNetwork);
       }
     } finally {
       setIsConnecting(false);

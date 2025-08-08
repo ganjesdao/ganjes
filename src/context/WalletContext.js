@@ -48,9 +48,9 @@ export const WalletProvider = ({ children }) => {
         setCurrentNetwork(network);
         setContractAddress(address);
 
-        console.log('Wallet auto-connected:', account);
-        console.log('Network:', network?.chainName);
-        console.log('Contract Address:', address);
+        // console.log('Wallet auto-connected:', account);
+        // console.log('Network:', network?.chainName);
+        // console.log('Contract Address:', address);
       }
 
       setIsInitialized(true);
@@ -87,9 +87,9 @@ export const WalletProvider = ({ children }) => {
         setCurrentNetwork(network);
         setContractAddress(address);
         toast.success('Wallet connected successfully!');
-        console.log('Wallet connected:', account);
-        console.log('Network:', network?.chainName);
-        console.log('Contract Address:', address);
+        // console.log('Wallet connected:', account);
+        // console.log('Network:', network?.chainName);
+        // console.log('Contract Address:', address);
         return true;
       }
       return false;
@@ -116,7 +116,7 @@ export const WalletProvider = ({ children }) => {
   const handleAccountsChanged = useCallback((accounts) => {
     if (accounts.length > 0) {
       setAccount(accounts[0]);
-      console.log('Account changed to:', accounts[0]);
+      // console.log('Account changed to:', accounts[0]);
 
       // Reinitialize provider and signer with new account
       if (window.ethereum) {
@@ -144,8 +144,8 @@ export const WalletProvider = ({ children }) => {
     setCurrentNetwork(network);
     setContractAddress(address);
 
-    console.log('Network changed to:', network?.chainName);
-    console.log('New contract address:', address);
+    // console.log('Network changed to:', network?.chainName);
+    // console.log('New contract address:', address);
 
     if (!network) {
 

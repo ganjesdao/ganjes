@@ -14,7 +14,7 @@ export const NETWORKS = {
     color: '#627EEA',
     faucetUrl: null, // No faucet for mainnet
   },
-  
+
   ETH_SEPOLIA: {
     chainId: '0xaa36a7', // 11155111 in decimal
     chainName: 'Sepolia Testnet',
@@ -66,7 +66,7 @@ export const CONTRACT_ADDRESSES = {
   [NETWORKS.ETH_MAINNET.chainId]: '0x0000000000000000000000000000000000000000', // Replace with actual mainnet contract
   [NETWORKS.ETH_SEPOLIA.chainId]: '0x42DfcbF08cdf0d7A522E7A1c19ec3cC30a180117', // Replace with actual Sepolia contract
   [NETWORKS.BSC_MAINNET.chainId]: process.env.REACT_APP_DAO_BSC_TEST_ADDRESS, // Your BSC mainnet contract
-  [NETWORKS.BSC_TESTNET.chainId]:  process.env.REACT_APP_DAO_BSC_TEST_ADDRESS, // Your BSC testnet contract
+  [NETWORKS.BSC_TESTNET.chainId]: process.env.REACT_APP_DAO_BSC_TEST_ADDRESS, // Your BSC testnet contract
 };
 
 // Get network by chain ID
@@ -82,6 +82,15 @@ export const getContractAddress = (chainId) => {
 // Check if network is testnet
 export const isTestnet = (chainId) => {
   return chainId === NETWORKS.ETH_SEPOLIA.chainId || chainId === NETWORKS.BSC_TESTNET.chainId;
+};
+
+// Get RPC URL for network
+export const getRpcUrl = (chainId) => {
+  const network = getNetworkByChainId(chainId);
+  if (network && network.rpcUrls && network.rpcUrls.length > 0) {
+    return network.rpcUrls[0]; // Return the first RPC URL
+  }
+  return 'Default RPC (MetaMask provider)';
 };
 
 // Get gas price for network (in gwei)

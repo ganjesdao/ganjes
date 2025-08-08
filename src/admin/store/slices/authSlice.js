@@ -12,7 +12,7 @@ const getInitialState = () => {
   try {
     const token = TokenManager.getAuthToken();
     const user = TokenManager.getUserInfo();
-    
+
     if (token && user) {
       return {
         user: user,
@@ -28,7 +28,7 @@ const getInitialState = () => {
   } catch (error) {
     console.warn('Failed to restore auth from storage:', error);
   }
-  
+
   return {
     user: null,
     token: null,
@@ -65,6 +65,7 @@ export const loginAsync = createAsyncThunk(
       const data = await response.json();
 
       if (!response.ok || !data.status) {
+        localStorage.setItem('token', data.token);
         return rejectWithValue(data.message || 'Login failed');
       }
 
@@ -134,10 +135,10 @@ export const logoutAsync = createAsyncThunk(
   async (_, { getState }) => {
     try {
       const { auth } = getState();
-      
+
       if (auth.refreshToken) {
         await SecureFetch.fetch(
-          `${process.env.REACT_APP_BASE_API_URL}/admin/auth/logout`,
+          `${process.env.REACT_APP_BASE_API_URL}/admin/logout`,
           {
             method: 'POST',
             headers: {
@@ -220,7 +221,7 @@ const authSlice = createSlice({
       try {
         const token = TokenManager.getAuthToken();
         const user = TokenManager.getUserInfo();
-        
+
         if (token && user) {
           state.user = user;
           state.token = token;
@@ -332,13 +333,13 @@ export const selectHasPermission = (permission) => (state) => {
 };
 
 export const selectHasAnyPermission = (permissions) => (state) => {
-  return permissions.some(permission => 
+  return permissions.some(permission =>
     state.auth.permissions.includes(permission)
   );
 };
 
 export const selectHasAllPermissions = (permissions) => (state) => {
-  return permissions.every(permission => 
+  return permissions.every(permission =>
     state.auth.permissions.includes(permission)
   );
 };

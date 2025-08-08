@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
 import '../../styles/GalaxySlider.css';
 import Header from './Inculde/Header';
-import { getContractAddress, isTestnet } from '../../utils/networks';
+import { getContractAddress, isTestnet, getRpcUrl } from '../../utils/networks';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Footer from './Inculde/Footer';
@@ -245,7 +245,7 @@ function MarketPlace() {
       console.log(`Contract address: ${address}`);
 
       // Initialize contract with new network
-      initializeContract(address);
+      initializeContract(network);
     } else {
       setContractAddress("");
       setDaoContract(null);
@@ -254,7 +254,10 @@ function MarketPlace() {
   };
 
   // Initialize contract
-  const initializeContract = async (contractAddr) => {
+  const initializeContract = async (network) => {
+
+    const contractAddr = getContractAddress(network.chainId);
+
     if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
 
       setDaoContract(null);
@@ -271,7 +274,10 @@ function MarketPlace() {
 
     try {
       setIsLoading(true);
-      const provider = new ethers.BrowserProvider(window.ethereum);
+
+      const networkRpcUrl = getRpcUrl(network?.chainId);
+      console.log(`🔗 Using RPC URL: ${networkRpcUrl}`);
+      const provider = new ethers.JsonRpcProvider(networkRpcUrl);
       const contract = new ethers.Contract(contractAddr, daoABI, provider); // Use provider for read-only
       setDaoContract(contract);
 
@@ -295,30 +301,75 @@ function MarketPlace() {
 
   // Fetch proposal details
   const fetchProposalDetails = async (ids, contract) => {
-    try {
-      setIsLoading(true);
-      const proposalData = [];
-      for (const id of ids) {
-        const basic = await contract.getProposalBasicDetails(id);
-        const voting = await contract.getProposalVotingDetails(id);
-        proposalData.push({
-          id: basic.id.toString(),
-          projectName: basic.projectName,
-          projectUrl: basic.projectUrl,
-          description: basic.description,
-          fundingGoal: ethers.formatEther(basic.fundingGoal),
-          totalInvested: ethers.formatEther(voting.totalInvested),
-          endTime: new Date(Number(basic.endTime) * 1000).toLocaleString(),
-          passed: basic.passed,
-        });
-      }
-      setProposalDetails(proposalData);
-    } catch (error) {
-      console.error("Error fetching proposals:", error);
+    if (!contract) {
+      console.warn('⚠️ Contract not provided for proposals');
+      return;
+    }
 
+    try {
+      console.log('📋 Fetching recent proposals for landing page...');
+
+      const proposalCount = await contract.getTotalProposals();
+
+      const totalCount = Number(proposalCount);
+      console.log('📊 Total proposals available:', totalCount);
+
+      if (totalCount === 0) {
+        console.log('📋 No proposals found');
+        setProposalDetails([]);
+        return;
+      }
+
+      // Fetch the most recent proposals (limit to 6 for landing page)
+      const recentLimit = Math.min(6, totalCount);
+      const startIndex = Math.max(0, totalCount - recentLimit);
+
+      console.log(`🔍 Fetching ${recentLimit} most recent proposals (starting from ${startIndex})...`);
+
+      const recentProposals = [];
+
+      for (let i = totalCount - 1; i >= startIndex && recentProposals.length < recentLimit; i--) {
+        try {
+          const proposal = await contract.getProposal(i);
+
+          if (proposal) {
+            // Format proposal data for display
+            const currentTime = Math.floor(Date.now() / 1000);
+            const timeRemaining = proposal.endTime ? Math.max(0, Number(proposal.endTime) - currentTime) : 0;
+
+            const formattedProposal = {
+              id: i.toString(),
+              projectName: proposal.projectName || `Proposal #${i}`,
+              description: proposal.description || 'No description available',
+              fundingGoal: proposal.fundingGoal ? ethers.formatEther(proposal.fundingGoal) : '0',
+              totalInvested: proposal.totalInvested ? ethers.formatEther(proposal.totalInvested) : '0',
+              proposer: proposal.proposer || '0x0000000000000000000000000000000000000000',
+              executed: Boolean(proposal.executed),
+              passed: Boolean(proposal.passed),
+              endTime: proposal.endTime ? Number(proposal.endTime) : 0,
+              timeRemaining,
+              deadline: proposal.endTime ? new Date(Number(proposal.endTime) * 1000).toLocaleString() : 'No deadline',
+              // Status for display
+              status: proposal.executed ?
+                (proposal.passed ? 'PASSED' : 'FAILED') :
+                (timeRemaining > 0 ? 'ACTIVE' : 'PENDING')
+            };
+
+            recentProposals.push(formattedProposal);
+            console.log(`✅ Loaded proposal ${i}: ${formattedProposal.projectName}`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Could not fetch proposal ${i}:`, error.message);
+        }
+      }
+
+      console.log(`📋 Loaded ${recentProposals.length} recent proposals for display`);
+      setProposalDetails(recentProposals);
+
+    } catch (error) {
+      //  console.error('❌ Error fetching recent proposals:', error);
+      //  toast.error('Failed to fetch recent proposals');
       setProposalDetails([]);
-    } finally {
-      setIsLoading(false);
     }
   };
 

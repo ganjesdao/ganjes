@@ -7,7 +7,7 @@ import { daoABI } from '../../Auth/Abi';
 import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
 import { toast } from 'react-toastify';
-import { getContractAddress, isTestnet } from '../../utils/networks';
+import { getContractAddress, getRpcUrl, isTestnet } from '../../utils/networks';
 import { FaEye, FaVoteYea, FaCoins, FaThumbsUp, FaThumbsDown, FaClock, FaUser, FaCheckCircle, FaExclamationTriangle, FaChartLine, FaExternalLinkAlt, FaCalendarAlt, FaTimes } from 'react-icons/fa';
 
 
@@ -116,11 +116,9 @@ function ProposalDetails() {
     if (network) {
       const address = getContractAddress(network.chainId);
       setContractAddress(address);
-      console.log(`Network changed to: ${network.chainName}`);
-      console.log(`Contract address: ${address}`);
 
       // Initialize contract with new network
-      initializeContract(address);
+      initializeContract(network);
     } else {
       setContractAddress("");
       setDaoContract(null);
@@ -129,7 +127,12 @@ function ProposalDetails() {
   };
 
   // Initialize contract
-  const initializeContract = async (contractAddr) => {
+  const initializeContract = async (network) => {
+
+    const contractAddr = getContractAddress(network.chainId);
+
+
+
     if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
 
       setDaoContract(null);
@@ -144,13 +147,20 @@ function ProposalDetails() {
 
     try {
       setLoading(true);
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
+      const rpcUrl = getRpcUrl(network.chainId);
+
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      await browserProvider.send("eth_requestAccounts", []);
+      const signer = await browserProvider.getSigner();
       setSigner(signer);
 
-      const contract = new ethers.Contract(contractAddr, daoABI, signer);
-      setDaoContract(contract);
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+
+      const contract = new ethers.Contract(contractAddr, daoABI, provider);
+
+      //setDaoContract(contract);
+
+      fetchProposalDetails(pId, contract)
 
     } catch (error) {
       console.error("Init error:", error.message);
@@ -162,7 +172,6 @@ function ProposalDetails() {
       } else {
         toast.error(`❌ Failed to initialize contract: ${error.message}`);
       }
-
       setDaoContract(null);
       setProposalDetails([]);
     } finally {
@@ -172,49 +181,52 @@ function ProposalDetails() {
 
   // Fetch proposal details
   const fetchProposalDetails = async (id, contract) => {
+    //console.log('fetching proposal details', id);
     try {
       setIsLoading(true);
-      const proposalData = [];
+
+      if (!contract || !id) {
+        console.error('Missing contract or proposal ID');
+        return;
+      }
+
+      // Fetch proposal data from blockchain
       const basic = await contract.proposals(id);
+      //console.log('Raw Proposal Data:', basic);
 
+      // Parse blockchain data
+      const proposalData = {
+        id: id,
+        proposer: basic.proposer || 'Unknown',
+        projectName: basic.projectName || 'Unnamed Project',
+        description: basic.description || 'No description available',
+        projectUrl: basic.projectUrl || '#',
+        fundingGoal: basic.fundingGoal || 0n,
+        totalInvested: basic.totalInvested || 0n,
+        endTime: basic.endTime || 0n,
+        executed: basic.executed || false,
+        votersFor: Number(basic.votersFor || 0),
+        votersAgainst: Number(basic.votersAgainst || 0)
+      };
 
-      console.log('Proposal Data', basic);
+      //console.log('Parsed Proposal Data:', proposalData);
+      setProposalDetails(proposalData);
 
-      setProposalDetails(basic);
-      const fundingGoal = ethers.formatUnits(basic.fundingGoal, 18);
-      const endTime = new Date(Number(basic.endTime) * 1000).toLocaleString();
-      const totalInvested = ethers.formatUnits(basic.totalInvested, 18); // Convert timestamp to date string
-      setFundingGoal(fundingGoal);
-      setTotalInvested(totalInvested);
-      setIsLoading(false);
+      // Set formatted values for display
+      const fundingGoalFormatted = ethers.formatUnits(proposalData.fundingGoal, 18);
+      const totalInvestedFormatted = ethers.formatUnits(proposalData.totalInvested, 18);
+
+      setFundingGoal(parseFloat(fundingGoalFormatted));
+      setTotalInvested(parseFloat(totalInvestedFormatted));
 
     } catch (error) {
-      console.error("Error fetching proposals:", error);
-      toast.error("Failed to fetch proposals!");
-      setProposalDetails([]);
+      console.error("Error fetching proposal details:", error);
+      toast.error("Failed to fetch proposal details!");
+      setProposalDetails({});
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Re-fetch proposals on network change
-  useEffect(() => {
-    if (daoContract && currentNetwork) {
-      const fetchProposalsOnNetworkChange = async () => {
-        try {
-          setIsLoading(true);
-          const ids = await daoContract.getAllProposalIds();
-          await fetchProposalDetails(pId, daoContract);
-        } catch (error) {
-          console.error("Error fetching proposals on network change:", error);
-          setProposalDetails([]);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchProposalsOnNetworkChange();
-    }
-  }, [daoContract, currentNetwork]);
 
 
   const closeVoteModal = () => {
@@ -231,7 +243,7 @@ function ProposalDetails() {
   };
 
   const handleVote = async (proposalId, amount) => {
-    console.log('Proposal ID', proposalId, 'Amount:', amount);
+    //console.log('Proposal ID', proposalId, 'Amount:', amount);
     if (!contractAddress || !tokenContract || !daoContract) {
       toast.error("Contract not initialized properly");
       return;

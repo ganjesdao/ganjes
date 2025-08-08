@@ -183,10 +183,15 @@ function Vote() {
       setProposalDetails(basic);
       const fundingGoal = ethers.formatUnits(basic.fundingGoal, 18);
       const endTime = new Date(Number(basic.endTime) * 1000).toLocaleString();
-      const totalInvested = ethers.formatUnits(basic.totalInvested, 18); // Convert timestamp to date string
+      const totalInvested = ethers.formatUnits(basic.totalInvested, 18);
+      // Convert timestamp to date string
       setFundingGoal(fundingGoal);
       setTotalInvested(totalInvested);
       setIsLoading(false);
+
+
+
+
 
     } catch (error) {
       console.error("Error fetching proposals:", error);
@@ -237,6 +242,9 @@ function Vote() {
       return;
     }
 
+
+
+
     try {
       setLoading(true);
       toast.info("Approving tokens...");
@@ -247,7 +255,16 @@ function Vote() {
       await approveTokens(amountStr);
 
       toast.info("Casting vote...");
-      const tx = await daoContract.vote(proposalId, support, ethers.parseEther(amountStr));
+      // const tx = await daoContract.vote(proposalId, support, ethers.parseEther(amountStr));
+
+      // Estimate gas
+      const gasEstimate = await daoContract.vote.estimateGas(proposalId, support, ethers.parseEther(amountStr));
+      console.log(`⛽ Gas estimate: ${gasEstimate}`);
+
+      // Submit actual transaction
+      const tx = await daoContract.vote(proposalId, support, ethers.parseEther(amountStr), {
+        gasLimit: gasEstimate + 100000n // Add buffer
+      });
       await tx.wait();
 
       toast.success('Vote cast successfully!');

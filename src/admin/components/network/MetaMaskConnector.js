@@ -32,13 +32,17 @@ const MetaMaskConnector = ({ onConnected }) => {
       // Get current network
       const chainId = await window.ethereum.request({ method: 'eth_chainId' });
       
+      const connectionInfo = {
+        account: accounts[0],
+        chainId: chainId,
+        connected: true
+      };
+      
+      console.log('MetaMask connected:', connectionInfo);
       toast.success('✅ MetaMask connected successfully!');
       
       if (onConnected) {
-        onConnected({
-          account: accounts[0],
-          chainId: chainId
-        });
+        onConnected(connectionInfo);
       }
     } catch (error) {
       console.error('MetaMask connection error:', error);

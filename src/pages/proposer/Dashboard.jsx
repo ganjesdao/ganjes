@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Header from './component/Header';
 import Sidebar from './component/Sidebar';
 import Footer from './component/Footer';
@@ -6,7 +6,7 @@ import Auth from '../../Auth/Auth';
 import { daoABI } from '../../Auth/Abi';
 import { ethers } from 'ethers';
 import { toast } from 'react-toastify';
-import { getContractAddress, isTestnet } from '../../utils/networks';
+import { getContractAddress, getRpcUrl, isTestnet } from '../../utils/networks';
 
 function Dashboard() {
   const [isToggle, setIsToggle] = useState(false);
@@ -21,7 +21,7 @@ function Dashboard() {
 
   // Handle profile data from Auth component
   const handleProfileDataFetched = (data) => {
-    console.log('Profile Data:', data);
+
   };
 
   // Handle network change from Header component
@@ -30,8 +30,10 @@ function Dashboard() {
     if (network) {
       const address = getContractAddress(network.chainId);
       setContractAddress(address);
-      console.log(`Network changed to: ${network.chainName}`);
-      console.log(`Contract address: ${address}`);
+
+      const rpcUrl = getRpcUrl(network.chainId);
+
+      // console.log(`RPC URL: ${rpcUrl}`); // Assuming you have a function to get RPC URL based on chain ID
       initializeContract(address);
     } else {
       setContractAddress('');
@@ -62,22 +64,17 @@ function Dashboard() {
       await provider.send('eth_requestAccounts', []);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
-      console.log('Signer Address:', address);
       setWalletAddress(address);
 
       const contract = new ethers.Contract(contractAddr, daoABI, signer);
+
       setDaoContract(contract);
 
-      const ids = await contract.getProposalsByProposer(address);
-      await getProposalDetails(ids, contract, address);
+      // Try multiple methods to get proposals
+      await getProposalDetails(contract, address);
 
     } catch (error) {
-      console.error('Init error:', error.message);
-      if (error.message.includes('could not detect network')) {
-        toast.error('❌ Failed to connect to the network. Please check your wallet connection.');
-      } else if (error.message.includes('user rejected')) {
-        toast.error('❌ Connection rejected by user.');
-      }
+      console.error('❌ Contract initialization error:', error);
       setDaoContract(null);
       setProposalDetails([]);
       setWalletAddress('');
@@ -91,32 +88,115 @@ function Dashboard() {
     return currentNetwork && contractAddress && contractAddress !== '0x0000000000000000000000000000000000000000';
   };
 
-  // Fetch proposal details
-  const getProposalDetails = async (ids, contract, address) => {
+
+  // Fetch individual proposal details with enhanced error handling
+  const getProposalDetails = async (contract, address) => {
     try {
+
+      let ids = [];
+
+
+      ids = await contract.getProposalsIDByProposer(address);
+
+
+      // console.log('🔍 Fetching details for', ids.length, 'proposals...');
+
       const details = await Promise.all(
-        ids.map(async (id) => {
-          const proposal = await contract.proposals(id);
-          console.log('Proposal:', proposal.proposer, address);
-          if (proposal.proposer.toLowerCase() === address.toLowerCase()) {
-            console.log('Matching proposal:', proposal);
-            return {
-              id: id.toString(),
-              description: proposal.description || 'No description',
-              fundingGoal: ethers.formatUnits(proposal.fundingGoal || 0, 18),
-              proposer: proposal.proposer,
-              voteCountFor: proposal.votersFor?.toString() || '0',
-              voteCountAgainst: proposal.votersAgainst?.toString() || '0',
-              deadline: new Date((proposal.endTime?.toString() || 0) * 1000).toLocaleString(),
-              executed: proposal.executed || false,
-              totalInvested: proposal.totalInvested ? ethers.formatUnits(proposal.totalInvested, 18) : '0', // Add totalInvested if available
-            };
+        ids.map(async (id, index) => {
+          try {
+            // console.log(`🔍 Fetching proposal ${index + 1}/${ids.length}: ID ${id.toString()}`);
+
+            // Try different methods to get proposal data
+            let proposal;
+            try {
+              // Method 1: getProposal function (preferred method from script)
+              proposal = await contract.getProposal(id);
+              // console.log(`✅ getProposal(${id}) successful`);
+            } catch (error) {
+              console.warn(`⚠️ getProposal(${id}) failed:`, error.message);
+              try {
+                // Method 2: proposals mapping (fallback)
+                proposal = await contract.proposals(id);
+                // console.log(`✅ proposals(${id}) successful (fallback)`);
+              } catch (getError) {
+                console.warn(`⚠️ proposals(${id}) failed:`, getError.message);
+                return null;
+              }
+            }
+
+
+            // Check if this proposal belongs to the current user
+            if (proposal.proposer && proposal.proposer.toLowerCase() === address.toLowerCase()) {
+              // console.log(`✅ Proposal ${id} belongs to user`);
+
+              // Handle BigInt values properly
+              const safeFormatEther = (value) => {
+                try {
+                  return value ? ethers.formatEther(value.toString()) : '0';
+                } catch (error) {
+                  console.warn('Error formatting ether value:', error);
+                  return '0';
+                }
+              };
+
+              const safeBigIntToString = (value) => {
+                try {
+                  return value ? value.toString() : '0';
+                } catch (error) {
+                  console.warn('Error converting BigInt:', error);
+                  return '0';
+                }
+              };
+
+              const currentTime = Math.floor(Date.now() / 1000);
+              const timeRemaining = proposal.endTime ? Math.max(0, Number(proposal.endTime) - currentTime) : 0;
+
+              // Calculate funding progress
+              const fundingGoalNum = proposal.fundingGoal ? Number(ethers.formatEther(proposal.fundingGoal)) : 0;
+              const totalInvestedNum = proposal.totalInvested ? Number(ethers.formatEther(proposal.totalInvested)) : 0;
+              const fundingPercent = fundingGoalNum > 0 ? Math.min((totalInvestedNum / fundingGoalNum) * 100, 100) : 0;
+
+              return {
+                id: id.toString(),
+                description: proposal.description || 'No description',
+                projectName: proposal.projectName || 'Unnamed Project',
+                projectUrl: proposal.projectUrl || '',
+                fundingGoal: safeFormatEther(proposal.fundingGoal),
+                proposer: proposal.proposer,
+                // Use correct field names from contract
+                voteCountFor: safeBigIntToString(proposal.votersFor), // Number of voters
+                voteCountAgainst: safeBigIntToString(proposal.votersAgainst), // Number of voters
+                totalVotesFor: safeFormatEther(proposal.totalVotesFor), // Vote weight
+                totalVotesAgainst: safeFormatEther(proposal.totalVotesAgainst), // Vote weight
+                deadline: proposal.endTime ? new Date(Number(proposal.endTime) * 1000).toLocaleString() : 'No deadline',
+                endTime: proposal.endTime ? Number(proposal.endTime) : 0,
+                timeRemaining,
+                executed: Boolean(proposal.executed),
+                passed: Boolean(proposal.passed),
+                totalInvested: safeFormatEther(proposal.totalInvested),
+                proposalDeposit: safeFormatEther(proposal.proposalDeposit),
+                fundingPercent: fundingPercent.toFixed(1),
+                fundingMet: proposal.totalInvested && proposal.fundingGoal ?
+                  proposal.totalInvested >= proposal.fundingGoal : false,
+                // Status calculation
+                status: proposal.executed ?
+                  (proposal.passed ? 'PASSED' : 'FAILED') :
+                  (timeRemaining > 0 ? 'VOTING_ACTIVE' : 'PENDING_EXECUTION')
+              };
+            } else {
+              // console.log(`❌ Proposal ${id} does not belong to user (${proposal.proposer} !== ${address})`);
+              return null;
+            }
+          } catch (error) {
+            console.error(`❌ Error fetching proposal ${id}:`, error.message);
+            return null;
           }
-          return null;
         })
       );
 
       const filteredDetails = details.filter((detail) => detail !== null);
+      // console.log(`✅ Successfully fetched ${filteredDetails.length} user proposals`);
+
       setProposalDetails(filteredDetails);
 
       setConsoleLogs((prev) => [
@@ -125,12 +205,11 @@ function Dashboard() {
           timestamp: Math.floor(Date.now() / 1000),
           function: 'getProposalDetails',
           status: 'Success',
-          result: filteredDetails,
+          result: `Found ${filteredDetails.length} proposals`,
         },
       ]);
     } catch (error) {
-      console.error('Error fetching proposal details:', error);
-      toast.error('❌ Failed to fetch proposal details.');
+
       setProposalDetails([]);
       setConsoleLogs((prev) => [
         ...prev,
@@ -144,22 +223,27 @@ function Dashboard() {
     }
   };
 
-  // useEffect cleanup for contract initialization
-  useEffect(() => {
-    let isMounted = true;
-
-    if (contractAddress) {
-      initializeContract(contractAddress);
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [contractAddress]);
+  // Removed redundant useEffect - initializeContract is called directly in handleNetworkChange
 
   const viewDetails = (proposalId) => {
     localStorage.setItem('proposalId', proposalId)
     window.location.href = "/proposal-details"
+  };
+
+  // Manual refresh function
+  const refreshProposals = async () => {
+    if (daoContract && walletAddress) {
+      setLoading(true);
+      try {
+        await getProposalDetails(daoContract, walletAddress);
+      } catch (error) {
+        console.error('Refresh error:', error);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+
+    }
   };
   return (
     <>
@@ -178,17 +262,34 @@ function Dashboard() {
                 <h4 className="mt-4">Dashboard</h4>
 
 
-                {/* Network Status */}
+                {/* Network Status & Controls */}
                 <div className="row mb-4">
                   <div className="col-12">
                     {currentNetwork ? (
                       <div className="alert alert-info d-flex justify-content-between align-items-center">
                         <div>
-                          My Proposals
+                          <i className="fas fa-list me-2"></i>My Proposals
+                          {walletAddress && (
+                            <small className="d-block text-muted mt-1">
+                              <i className="fas fa-wallet me-1"></i>
+                              {walletAddress.substring(0, 10)}...{walletAddress.slice(-8)}
+                            </small>
+                          )}
                         </div>
-                        {isTestnet(currentNetwork.chainId) && (
-                          <span className="badge bg-warning">Testnet</span>
-                        )}
+                        <div className="d-flex align-items-center gap-2">
+                          {isTestnet(currentNetwork.chainId) && (
+                            <span className="badge bg-warning">Testnet</span>
+                          )}
+                          <button
+                            className="btn btn-outline-primary btn-sm"
+                            onClick={refreshProposals}
+                            disabled={loading}
+                            title="Refresh proposals"
+                          >
+                            <i className={`fas fa-sync-alt ${loading ? 'fa-spin' : ''} me-1`}></i>
+                            Refresh
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div className="alert alert-warning">
@@ -211,29 +312,44 @@ function Dashboard() {
                     <div className="row">
                       <div className="col-xl-3 col-md-6">
                         <div className="card bg-primary text-white mb-4">
-                          <div className="card-body">Total Proposals: {proposalDetails.length}</div>
+                          <div className="card-body">
+                            <div>Total Proposal: {proposalDetails.length || 0}</div>
+                            <small className="opacity-75">
+                              &nbsp;
+                              {/* Weight: {proposalDetails.reduce((acc, p) => acc + Number(p.totalVotesFor || 0), 0).toFixed(2)} GNJ */}
+                            </small>
+                          </div>
                         </div>
                       </div>
                       <div className="col-xl-3 col-md-6">
                         <div className="card bg-warning text-white mb-4">
                           <div className="card-body">
-                            Executed: {proposalDetails.filter((p) => p.executed).length}
+                            <div>Executed: {proposalDetails.filter((p) => p.executed).length}</div>
+                            <small className="opacity-75">
+                              &nbsp;
+
+                              {/* Weight: {proposalDetails.reduce((acc, p) => acc + Number(p.totalVotesFor || 0), 0).toFixed(2)} GNJ */}
+                            </small>
                           </div>
                         </div>
                       </div>
                       <div className="col-xl-3 col-md-6">
                         <div className="card bg-success text-white mb-4">
                           <div className="card-body">
-                            Votes For:{' '}
-                            {proposalDetails.reduce((acc, p) => acc + Number(p.voteCountFor || 0), 0)}
+                            <div>Voters For: {proposalDetails.reduce((acc, p) => acc + Number(p.voteCountFor || 0), 0)}</div>
+                            <small className="opacity-75">
+                              Weight: {proposalDetails.reduce((acc, p) => acc + Number(p.totalVotesFor || 0), 0).toFixed(2)} GNJ
+                            </small>
                           </div>
                         </div>
                       </div>
                       <div className="col-xl-3 col-md-6">
                         <div className="card bg-danger text-white mb-4">
                           <div className="card-body">
-                            Votes Against:{' '}
-                            {proposalDetails.reduce((acc, p) => acc + Number(p.voteCountAgainst || 0), 0)}
+                            <div>Voters Against: {proposalDetails.reduce((acc, p) => acc + Number(p.voteCountAgainst || 0), 0)}</div>
+                            <small className="opacity-75">
+                              Weight: {proposalDetails.reduce((acc, p) => acc + Number(p.totalVotesAgainst || 0), 0).toFixed(2)} GNJ
+                            </small>
                           </div>
                         </div>
                       </div>
@@ -243,8 +359,31 @@ function Dashboard() {
                     <div className="mt-5">
                       <div className="row">
                         {proposalDetails.length === 0 ? (
-                          <div className="text-center">
-                            <p>No proposals found.</p>
+                          <div className="text-center py-5">
+                            <div className="mb-4">
+                              <i className="fas fa-inbox fa-3x text-muted mb-3"></i>
+                              <h5 className="text-muted">No Proposals Found</h5>
+                              <p className="text-muted">
+                                You haven't created any proposals yet or they couldn't be loaded.
+                              </p>
+                              <div className="mt-3">
+                                <button
+                                  className="btn btn-primary me-2"
+                                  onClick={() => window.location.href = '/create-proposal'}
+                                >
+                                  <i className="fas fa-plus me-1"></i>
+                                  Create Your First Proposal
+                                </button>
+                                <button
+                                  className="btn btn-outline-secondary"
+                                  onClick={refreshProposals}
+                                  disabled={loading}
+                                >
+                                  <i className={`fas fa-sync-alt ${loading ? 'fa-spin' : ''} me-1`}></i>
+                                  Try Again
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         ) : (
                           proposalDetails.map((p) => (
@@ -258,16 +397,33 @@ function Dashboard() {
                                           <i className="fas fa-hashtag me-1"></i>#{p.id}
                                         </span>
                                         <span
-                                          className={`badge ${p.executed ? 'bg-success' : 'bg-warning'} bg-opacity-90`}
+                                          className={`badge ${p.status === 'PASSED' ? 'bg-success' :
+                                            p.status === 'FAILED' ? 'bg-danger' :
+                                              p.status === 'VOTING_ACTIVE' ? 'bg-primary' :
+                                                'bg-warning'
+                                            } bg-opacity-90`}
                                         >
                                           <i
-                                            className={`fas ${p.executed ? 'fa-check-circle' : 'fa-clock'} me-1`}
+                                            className={`fas ${p.status === 'PASSED' ? 'fa-check-circle' :
+                                              p.status === 'FAILED' ? 'fa-times-circle' :
+                                                p.status === 'VOTING_ACTIVE' ? 'fa-vote-yea' :
+                                                  'fa-clock'
+                                              } me-1`}
                                           ></i>
-                                          {p.executed ? 'Executed' : 'Active'}
+                                          {p.status === 'PASSED' ? 'Passed' :
+                                            p.status === 'FAILED' ? 'Failed' :
+                                              p.status === 'VOTING_ACTIVE' ? 'Voting' :
+                                                'Pending'}
                                         </span>
-                                        {parseFloat(p.totalInvested || '0') >= parseFloat(p.fundingGoal || '0') && (
+                                        {p.fundingMet && (
                                           <span className="badge bg-success bg-opacity-90 ms-2">
                                             <i className="fas fa-target me-1"></i>Funded
+                                          </span>
+                                        )}
+                                        {p.timeRemaining > 0 && (
+                                          <span className="badge bg-info bg-opacity-90 ms-2">
+                                            <i className="fas fa-hourglass-half me-1"></i>
+                                            {Math.floor(p.timeRemaining / 86400)}d {Math.floor((p.timeRemaining % 86400) / 3600)}h
                                           </span>
                                         )}
                                       </div>
@@ -299,7 +455,14 @@ function Dashboard() {
                                         <div className="fw-bold text-success h5 mb-1">
                                           {p.voteCountFor || '0'}
                                         </div>
-                                        <div className="small text-muted">Votes For</div>
+                                        <div className="small text-muted">
+                                          Voters For
+                                          {p.totalVotesFor && (
+                                            <div className="text-xs text-muted">
+                                              {parseFloat(p.totalVotesFor).toFixed(2)} GNJ
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                     <div className="col-6">
@@ -310,7 +473,14 @@ function Dashboard() {
                                         <div className="fw-bold text-danger h5 mb-1">
                                           {p.voteCountAgainst || '0'}
                                         </div>
-                                        <div className="small text-muted">Votes Against</div>
+                                        <div className="small text-muted">
+                                          Voters Against
+                                          {p.totalVotesAgainst && (
+                                            <div className="text-xs text-muted">
+                                              {parseFloat(p.totalVotesAgainst).toFixed(2)} GNJ
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -322,12 +492,7 @@ function Dashboard() {
                                         <i className="fas fa-chart-line me-1 text-primary"></i>Funding Progress
                                       </span>
                                       <span className="badge bg-primary bg-opacity-10 text-primary">
-                                        {(() => {
-                                          const invested = parseFloat(p.totalInvested || '0');
-                                          const goal = parseFloat(p.fundingGoal || '0');
-                                          return goal > 0 ? ((invested / goal) * 100).toFixed(1) : '0';
-                                        })()}
-                                        %
+                                        {p.fundingPercent}%
                                       </span>
                                     </div>
                                     <div className="progress mb-2" style={{ height: '12px', borderRadius: '10px' }}>
@@ -335,17 +500,9 @@ function Dashboard() {
                                         className="funding-progress-bar"
                                         role="progressbar"
                                         style={{
-                                          width: `${(() => {
-                                            const invested = parseFloat(p.totalInvested || '0');
-                                            const goal = parseFloat(p.fundingGoal || '0');
-                                            return goal > 0 ? Math.min((invested / goal) * 100, 100) : 0;
-                                          })()}%`,
+                                          width: `${p.fundingPercent}%`,
                                         }}
-                                        aria-valuenow={(() => {
-                                          const invested = parseFloat(p.totalInvested || '0');
-                                          const goal = parseFloat(p.fundingGoal || '0');
-                                          return goal > 0 ? Math.min((invested / goal) * 100, 100) : 0;
-                                        })()}
+                                        aria-valuenow={p.fundingPercent}
                                         aria-valuemin="0"
                                         aria-valuemax="100"
                                       ></div>

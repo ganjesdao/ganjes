@@ -11,7 +11,6 @@ import Signin from './pages/proposer/Signin';
 import Dashboard from './pages/proposer/Dashboard';
 import Register from './pages/proposer/Register';
 import CreateProposal from './pages/proposer/CreateProposal';
-import Project from './pages/Landing/Project';
 import ProposalCreate from './pages/proposer/ProposalCreate';
 import Login from './pages/Investor/Login';
 import Signup from './pages/Investor/Signup';
@@ -36,57 +35,56 @@ function App() {
   }, []);
 
   return (
-   <>
-   <WalletProvider>
-     <Router>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/landing" element={<Landing />} />
-        <Route path="/marketplace" element={<Marketplace />} />
-        <Route path="/join" element={<Join />} />
-        <Route path="/proposal" element={<Proposal />} />
+    <>
+      <WalletProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/landing" element={<Landing />} />
+            <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/join" element={<Join />} />
+            <Route path="/proposal" element={<Proposal />} />
 
 
 
 
-        {/* proposer routes */}
-        <Route path="/signin" element={<Signin />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/project" element={<Project />} />
-        <Route path="/create-proposal" element={<CreateProposal />} />
-        <Route path="/proposal-create" element={<ProposalCreate />} />
-        <Route path="/proposal-details" element={<ProposalDetails />} />
+            {/* proposer routes */}
+            <Route path="/signin" element={<Signin />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/create-proposal" element={<CreateProposal />} />
+            <Route path="/proposal-create" element={<ProposalCreate />} />
+            <Route path="/proposal-details" element={<ProposalDetails />} />
 
-        {/* Investor routes */}  
-        <Route path="/investor-login" element={<Login />} />
-        <Route path="/investor-register" element={<Signup />} />
-        <Route path="/investor-dashboard" element={<InvestorDashboard />} />
-        <Route path="/investor-analytics" element={<Analytics />} />
-        <Route path="/investor-vote" element={<Vote />} />
-        <Route path="/investor-voting-data" element={<MyVoting />} />
+            {/* Investor routes */}
+            <Route path="/investor-login" element={<Login />} />
+            <Route path="/investor-register" element={<Signup />} />
+            <Route path="/investor-dashboard" element={<InvestorDashboard />} />
+            <Route path="/investor-analytics" element={<Analytics />} />
+            <Route path="/investor-vote" element={<Vote />} />
+            <Route path="/investor-voting-data" element={<MyVoting />} />
 
-        <Route path="/investor-join" element={<JoinInvestor />} />
-        
-        {/* Admin routes */}
-        <Route path="/admin/*" element={<AdminApp />} />
+            <Route path="/investor-join" element={<JoinInvestor />} />
 
-      </Routes>
-    </Router>
-    <ToastContainer
-      position="top-right"
-      autoClose={5000}
-      hideProgressBar={false}
-      newestOnTop={false}
-      closeOnClick
-      rtl={false}
-      pauseOnFocusLoss
-      draggable
-      pauseOnHover
-      theme="colored"
-    />
-   </WalletProvider>
-   </>
+            {/* Admin routes */}
+            <Route path="/admin/*" element={<AdminApp />} />
+
+          </Routes>
+        </Router>
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
+      </WalletProvider>
+    </>
   );
 }
 
