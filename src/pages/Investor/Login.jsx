@@ -39,10 +39,13 @@ function Login() {
 
     return (
         <div className="container-fluid">
+
             <div className="row">
+
                 <div className="col-md-6 col-xl-6 col-12">
                     <div className="container vh-100 d-flex justify-content-center align-items-center">
                         <div className="col-lg-8">
+
                             <div className="card">
                                 <div className="card-body p-4">
                                     <div className="text-center mb-4">
@@ -53,7 +56,7 @@ function Login() {
                                     <h4 className="mb-2 text-gradient fw-bold text-center">Welcome Back, Ganjes investors!</h4>
                                     <p className="mb-3 text-center text-muted">
                                         Don't have an account?{" "}
-                                        <a href="/investor-register"  style={{ textDecoration: 'none', color: '#34A853' }} >
+                                        <a href="/investor-register" style={{ textDecoration: 'none', color: '#34A853' }} >
                                             Sign Up
                                         </a>
                                     </p>

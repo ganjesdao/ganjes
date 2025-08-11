@@ -3,7 +3,7 @@ import React from 'react'
 function Footer() {
   return (
     <>
-    <footer className="bg-dark text-white py-4">
+      <footer className="bg-dark text-white py-4">
         <div className="container">
           <div className="row align-items-center">
             <div className="col-md-6">
@@ -27,15 +27,12 @@ function Footer() {
                 <a href="#" className="text-white">
                   <i className="fab fa-github fa-lg"></i>
                 </a>
-                <a href="#" className="text-white">
-                  <i className="fab fa-telegram fa-lg"></i>
-                </a>
               </div>
             </div>
           </div>
         </div>
       </footer>
-      </>
+    </>
   )
 }
 

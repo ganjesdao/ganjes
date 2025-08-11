@@ -78,11 +78,11 @@ function Landing() {
   const handleNetworkChange = useCallback((network) => {
     console.log(`Network changed to: ${network.chainName}`);
     setCurrentNetwork(network);
-    
+
     // Clear current data
     setContract(null);
     setProposalDetails([]);
-    
+
     // Initialize contract for new network
     initializeContract(network);
   }, []);
@@ -102,12 +102,12 @@ function Landing() {
       const rpcUrl = getRpcUrl(network.chainId);
       const provider = new ethers.JsonRpcProvider(rpcUrl);
       const contractInstance = new ethers.Contract(contractAddr, daoABI, provider);
-      
+
       setContract(contractInstance);
       setContractAddress(contractAddr);
-      
+
       console.log(`📄 Contract initialized on ${network.chainName}: ${contractAddr}`);
-      
+
       // Fetch initial data
       await fetchProposals(contractInstance);
       await fetchDAOStats(contractInstance);
@@ -124,10 +124,10 @@ function Landing() {
     try {
       setIsDataLoading(true);
       console.log('📋 Fetching proposals from contract...');
-      
+
       const proposalIds = await contractInstance.getAllProposalIds();
       console.log('📋 Found proposal IDs:', proposalIds.length);
-      
+
       if (!proposalIds.length) {
         setProposalDetails([]);
         return;
@@ -136,12 +136,12 @@ function Landing() {
       // Fetch first 6 proposals for landing page
       const proposals = [];
       const idsToFetch = proposalIds.slice(0, 6);
-      
+
       for (let i = 0; i < idsToFetch.length; i++) {
         try {
           const id = idsToFetch[i];
           const proposal = await contractInstance.getProposal(id);
-          
+
           proposals.push({
             id: Number(id),
             proposer: proposal.proposer,
@@ -160,7 +160,7 @@ function Landing() {
           console.warn(`⚠️ Failed to fetch proposal ${idsToFetch[i]}:`, error.message);
         }
       }
-      
+
       setProposalDetails(proposals);
       console.log(`📋 Loaded ${proposals.length} proposals for landing page`);
     } catch (error) {
@@ -177,10 +177,10 @@ function Landing() {
 
     try {
       console.log('📊 Fetching DAO statistics...');
-      
+
       // Try to get DAO stats
       const daoStatsData = await contractInstance.getDAOStats().catch(() => null);
-      
+
       if (daoStatsData) {
         setTotalProposals(daoStatsData.totalProposals ? daoStatsData.totalProposals.toString() : '0');
         setActivePrposal(daoStatsData.activeProposals ? Number(daoStatsData.activeProposals) : 0);
@@ -1389,14 +1389,11 @@ function Landing() {
                 <a href="#" className="text-white">
                   <i className="fab fa-twitter fa-lg"></i>
                 </a>
-                <a href="#" className="text-white">
+                <a href="http://discord.com/invite/Q3tg4uqBYW" className="text-white">
                   <i className="fab fa-discord fa-lg"></i>
                 </a>
                 <a href="#" className="text-white">
                   <i className="fab fa-github fa-lg"></i>
-                </a>
-                <a href="#" className="text-white">
-                  <i className="fab fa-telegram fa-lg"></i>
                 </a>
               </div>
             </div>

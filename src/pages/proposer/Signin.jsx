@@ -22,7 +22,7 @@ function Signin() {
       if (response.data.status) {
         setAlertType('success');
         sessionStorage.setItem('authToken', response.data.token);
-         window.location.href = "/dashboard"; 
+        window.location.href = "/dashboard";
       } else {
         setAlertType('error');
       }
@@ -40,6 +40,7 @@ function Signin() {
   return (
     <div className="container vh-100 d-flex justify-content-center align-items-center">
       <div className="col-lg-5">
+
         <div className="card mb-0">
           <div className="p-sm-8 p-md-10 card-body">
             <div className="text-center mb-4">

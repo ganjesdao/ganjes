@@ -38,6 +38,7 @@ function ProposalDetails() {
   const [proposalId, setProposalId] = useState(pId || '');
   const [showVoteModal, setShowVoteModal] = useState(false);
   const [voteAmount, setVoteAmount] = useState('15.00');
+  const [walletBalance, setWalletBalance] = useState('0.00');
 
   // Filter states (unused but preserved)
   const [filterStatus, setFilterStatus] = useState('all');
@@ -61,10 +62,15 @@ function ProposalDetails() {
       window.ethereum?.on('accountsChanged', (accounts) => {
         if (accounts.length > 0) {
           setWalletAddress(accounts[0]);
+          // Fetch balance when account changes
+          if (tokenContractInstance) {
+            setTimeout(() => fetchWalletBalance(), 1000);
+          }
         } else {
           setWalletAddress(null);
           setSigner(null);
           setTokenContractWithSigner(null);
+          setWalletBalance('0.00');
           toast.warning('Wallet disconnected. Please reconnect to MetaMask.');
         }
       });
@@ -96,6 +102,12 @@ function ProposalDetails() {
       setWalletAddress(accounts[0]);
       const signer = await provider.getSigner();
       setSigner(signer);
+      
+      // Fetch balance after wallet connects
+      if (tokenContractInstance) {
+        setTimeout(() => fetchWalletBalance(), 1000);
+      }
+      
       return signer;
     } catch (err) {
       console.error('Wallet connection failed:', err);
@@ -152,6 +164,24 @@ function ProposalDetails() {
   };
 
   // Fetch proposal details
+  // Fetch wallet balance
+  const fetchWalletBalance = async () => {
+    if (!walletAddress || !tokenContractInstance) {
+      setWalletBalance('0.00');
+      return;
+    }
+
+    try {
+      const balance = await withRetry(() => tokenContractInstance.balanceOf(walletAddress));
+      const decimals = await withRetry(() => tokenContractInstance.decimals());
+      const formattedBalance = Number(ethers.formatUnits(balance, decimals)).toFixed(2);
+      setWalletBalance(formattedBalance);
+    } catch (error) {
+      console.error('Error fetching wallet balance:', error);
+      setWalletBalance('0.00');
+    }
+  };
+
   const fetchProposalDetails = async (id, network) => {
     if (!id || !network) {
       console.error('Missing proposal ID or network');
@@ -214,6 +244,11 @@ function ProposalDetails() {
 
       setFundingGoal(fundingGoalFormatted);
       setTotalInvested(totalInvestedFormatted);
+
+      // Fetch wallet balance if wallet is connected
+      if (walletAddress) {
+        fetchWalletBalance();
+      }
     } catch (error) {
       console.error('Error fetching proposal details:', error);
       toast.error(`Failed to fetch proposal details: ${error.message || 'Unknown error'}`);
@@ -243,6 +278,27 @@ function ProposalDetails() {
       let localSigner = signer;
       let localTokenContractWithSigner = tokenContractWithSigner;
 
+      const timeEnding = Number(proposalDetails.endTime);
+      const currentTime = Math.floor(Date.now() / 1000);
+
+      console.log(`Ending time ${timeEnding} < ${currentTime}`)
+
+      const proposerAddress = proposalDetails.proposer.toLowerCase();
+      const voterAddress = walletAddress.toLowerCase();
+
+
+
+      if (proposerAddress === voterAddress) {
+        toast.error("You can't vote for yourself");
+        return;
+      }
+
+      if (currentTime >= timeEnding) {
+        toast.error("Voting period has ended.");
+        return;
+
+      }
+
       if (!localSigner || !localTokenContractWithSigner) {
         toast.info('Initializing wallet and token contract...');
         localSigner = await connectWallet();
@@ -269,6 +325,8 @@ function ProposalDetails() {
     }
 
     try {
+
+
       const daoContractWithSigner = new ethers.Contract(contractAddress, daoABI, signer);
 
       // Check balance
@@ -561,18 +619,42 @@ function ProposalDetails() {
 
                             {/* Vote Button */}
                             <div className="mt-4">
-                              <button
-                                className="btn btn-gradient btn-lg w-100 rounded-pill text-white"
-                                onClick={() => setShowVoteModal(true)}
-                                disabled={isLoading || !currentNetwork || !contractAddress || proposalDetails.executed}
-                                style={{
-                                  background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
-                                  border: 'none',
-                                }}
-                              >
-                                <FaVoteYea className="me-2" />
-                                Cast Your Vote
-                              </button>
+                              {(() => {
+                                const currentTime = Math.floor(Date.now() / 1000);
+                                const endTime = Number(proposalDetails.endTime);
+                                const isVotingEnded = currentTime >= endTime;
+                                
+                                return (
+                                  <button
+                                    className="btn btn-gradient btn-lg w-100 rounded-pill text-white"
+                                    onClick={() => {
+                                      setShowVoteModal(true);
+                                      if (walletAddress && tokenContractInstance) {
+                                        fetchWalletBalance();
+                                      }
+                                    }}
+                                    disabled={isLoading || !currentNetwork || !contractAddress || proposalDetails.executed || isVotingEnded}
+                                    style={{
+                                      background: isVotingEnded 
+                                        ? 'linear-gradient(135deg, #6c757d 0%, #495057 100%)'
+                                        : 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                                      border: 'none',
+                                    }}
+                                  >
+                                    {isVotingEnded ? (
+                                      <>
+                                        <FaTimes className="me-2" />
+                                        Voting Ended
+                                      </>
+                                    ) : (
+                                      <>
+                                        <FaVoteYea className="me-2" />
+                                        Cast Your Vote
+                                      </>
+                                    )}
+                                  </button>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -618,6 +700,27 @@ function ProposalDetails() {
                   </div>
                 </div>
 
+                {/* Wallet Balance */}
+                <div className="mb-4">
+                  <div className="stats-card p-3 bg-light border">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div className="d-flex align-items-center">
+                        <div className="bg-primary rounded-circle p-2 me-3">
+                          <FaCoins className="text-white" />
+                        </div>
+                        <div>
+                          <h6 className="mb-1 fw-bold">Your Wallet Balance</h6>
+                          <small className="text-muted">Available GNJ tokens</small>
+                        </div>
+                      </div>
+                      <div className="text-end">
+                        <div className="fw-bold fs-5 text-primary">{walletBalance} GNJ</div>
+                        <small className="text-muted">Balance</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Investment Amount */}
                 <div className="mb-4">
                   <label htmlFor="voteAmount" className="form-label fw-bold mb-3">
@@ -635,6 +738,7 @@ function ProposalDetails() {
                       value={voteAmount}
                       onChange={(e) => setVoteAmount(e.target.value)}
                       min="1"
+                      max={walletBalance}
                       step="0.01"
                       placeholder="Enter amount to invest"
                       style={{ fontSize: '1.1rem' }}
@@ -644,7 +748,7 @@ function ProposalDetails() {
                   <div className="form-text text-muted mt-2">
                     <small>
                       <FaExclamationTriangle className="me-1 text-warning" />
-                      Minimum: 1 GNJ token required
+                      Minimum: 1 GNJ token required • Available: {walletBalance} GNJ
                     </small>
                   </div>
                 </div>

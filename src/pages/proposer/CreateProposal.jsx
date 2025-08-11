@@ -756,7 +756,7 @@ function CreateProposal() {
                                                             </>
                                                         ) : (
                                                             <>
-                                                                🚀 Create Proposal
+                                                                🚀 Approve Proposal
                                                             </>
                                                         )}
                                                     </button>

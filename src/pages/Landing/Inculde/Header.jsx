@@ -13,7 +13,7 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
   const handleNetworkChange = (network) => {
     console.log(`Network changed to: ${network?.chainName}`);
     console.log(`Contract address: ${contractAddress}`);
-    
+
     // Propagate the network change to parent component
     if (onNetworkChange) {
       onNetworkChange(network);
@@ -35,7 +35,7 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
           <a className="navbar-brand" href="/">
             <img src="assets/image/logo/logo-desktop.png" width={150} alt="Ganjes DAO" />
           </a>
-          
+
           <button
             className="navbar-toggler"
             type="button"
@@ -47,7 +47,7 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
           >
             <span className="navbar-toggler-icon"></span>
           </button>
-          
+
           <div className="collapse navbar-collapse" id="navbarNav">
             <ul className="navbar-nav ms-auto align-items-center">
               <li className="nav-item">
@@ -57,17 +57,43 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
                 <a className="nav-link" href="/marketplace">Marketplace</a>
               </li>
               <li className="nav-item">
-                <a className="nav-link" href="#contact">Contact</a>
+                <a className="nav-link" href="https://discord.com/invite/Q3tg4uqBYW" target='blank'>Contact</a>
               </li>
-              
+              <ul className="navbar-nav ms-2 me-3 me-lg-4">
+                <li className="nav-item dropdown">
+                  <a
+                    className="nav-link dropdown-toggle"
+                    id="navbarDropdown"
+                    href="#"
+                    role="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                  >
+                    Login
+                  </a>
+                  <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                    <li>
+                      <a className="dropdown-item" href="investor-login">
+                        Investor Login
+                      </a>
+                    </li>
+                    <li>
+                      <a className="dropdown-item" href="Signin">
+                        Startup Login
+                      </a>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+
               {/* Network Section */}
               <li className="nav-item dropdown me-3">
                 <div className="d-flex align-items-center gap-2">
                   {/* Network Switcher */}
-                  <SimpleNetworkSwitcher  onNetworkChange={handleNetworkChange}/>
+                  <SimpleNetworkSwitcher onNetworkChange={handleNetworkChange} />
                 </div>
               </li>
-              
+
               <li className="nav-item">
                 <button
                   onClick={navigateToDashboard}
