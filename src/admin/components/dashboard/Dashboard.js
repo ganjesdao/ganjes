@@ -53,37 +53,6 @@ const Dashboard = () => {
     activeInvestors: '143'
   };
 
-  // const proposalDetails = [
-  //   {
-  //     id: '1',
-  //     projectName: 'DeFi Innovation Platform',
-  //     description: 'A cutting-edge decentralized finance platform that revolutionizes how users interact with blockchain technology.',
-  //     fundingGoal: '10000',
-  //     totalInvested: '7500',
-  //     endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleString(),
-  //     passed: false
-  //   },
-  //   {
-  //     id: '2',
-  //     projectName: 'Green Energy NFT Marketplace',
-  //     description: 'An eco-friendly NFT marketplace focused on promoting sustainable energy solutions through blockchain technology.',
-  //     fundingGoal: '15000',
-  //     totalInvested: '15000',
-  //     endTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toLocaleString(),
-  //     passed: true
-  //   },
-  //   {
-  //     id: '3',
-  //     projectName: 'AI-Powered Trading Bot',
-  //     description: 'Advanced artificial intelligence trading bot for automated cryptocurrency portfolio management.',
-  //     fundingGoal: '8000',
-  //     totalInvested: '5200',
-  //     endTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleString(),
-  //     passed: false
-  //   }
-  // ];
-
-  // Navigation items for header/sidebar
   const navigationItems = [
     {
       name: 'Dashboard',

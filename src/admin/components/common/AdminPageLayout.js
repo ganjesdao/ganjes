@@ -52,6 +52,12 @@ const AdminPageLayout = ({
             path: '/admin/executed',
             icon: '✅',
             description: 'Executed Proposals'
+        },
+        {
+            name: 'Administrators',
+            path: '/admin/administrators',
+            icon: '🔐',
+            description: 'Manage Admins'
         }
     ];
 

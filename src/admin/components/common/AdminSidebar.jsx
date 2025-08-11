@@ -69,6 +69,12 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen, onMobileChange }) => {
       path: '/admin/executed',
       icon: '✅',
       description: 'Executed Proposals'
+    },
+    {
+      name: 'Administrators',
+      path: '/admin/administrators',
+      icon: '🔐',
+      description: 'Manage Admins'
     }
   ];
 

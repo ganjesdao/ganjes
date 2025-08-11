@@ -1,33 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
 import Header from './Inculde/Header';
-import { getContractAddress, isTestnet, getRpcUrl } from '../../utils/networks';
+import { ToastContainer } from 'react-toastify';
+import { getNetworkByChainId, getContractAddress, getRpcUrl, NETWORKS } from '../../utils/networks';
 import { daoABI } from '../../Auth/Abi';
-import { ToastContainer, toast } from 'react-toastify';
 
 function Landing() {
   const [walletAddress, setWalletAddress] = useState(null);
-  const [daoContract, setDaoContract] = useState(null);
-  const [proposalDetails, setProposalDetails] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  // contractAddress removed - managed directly in handleNetworkChange
-  const [currentNetwork, setCurrentNetwork] = useState(null);
+  const [currentNetwork, setCurrentNetwork] = useState(NETWORKS.BSC_TESTNET);
+  const [contractAddress, setContractAddress] = useState('');
+  const [contract, setContract] = useState(null);
+  const [proposalDetails, setProposalDetails] = useState([]);
   const [totalProposals, setTotalProposals] = useState("0")
   const [activePrposal, setActivePrposal] = useState(0)
   const [activeInvestors, setActiveInvestors] = useState(0)
   const [totalFunded, setTotalFunded] = useState("0")
-  const [rpcUrl, setRpcUrl] = useState("")
-  const [contractStats, setContractStats] = useState({
-    totalFundingRequested: "0",
-    totalFundsRaised: "0",
-    activeProposals: 0,
-    executedProposals: 0,
-    totalVoters: 0
-  })
-
-
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
   // Check if wallet is already connected on component mount
   useEffect(() => {
@@ -68,7 +58,6 @@ function Landing() {
     }
 
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
       const accounts = await window.ethereum.request({
         method: 'eth_requestAccounts',
       });
@@ -86,199 +75,147 @@ function Landing() {
     }
   };
 
-  const handleNetworkChange = (network) => {
+  const handleNetworkChange = useCallback((network) => {
+    console.log(`Network changed to: ${network.chainName}`);
     setCurrentNetwork(network);
-    if (network) {
-      const address = getContractAddress(network.chainId);
-      const rpcUrl = getRpcUrl(network.chainId);
+    
+    // Clear current data
+    setContract(null);
+    setProposalDetails([]);
+    
+    // Initialize contract for new network
+    initializeContract(network);
+  }, []);
 
-      console.log(`Network changed to: ${network.chainName}`);
-      console.log(`Contract address: ${address}`);
-      console.log(`🌐 RPC URL for ${network.chainName}: ${rpcUrl}`);
-
-      setRpcUrl(rpcUrl);
-
-      // Initialize contract with new network
-      initializeContract(network);
-    } else {
-      setDaoContract(null);
-      setProposalDetails([]);
-      setRpcUrl("");
-    }
-  };
-
-
-  // Optimized DAO stats fetching with contract parameter
-  const fetchDAOStatsWithContract = async (contract) => {
-    if (!contract) {
-      console.warn('⚠️ Contract not provided for DAO stats');
+  // Initialize contract for reading data
+  const initializeContract = useCallback(async (network = currentNetwork) => {
+    const contractAddr = getContractAddress(network.chainId);
+    if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
+      console.warn(`No contract deployed on ${network.chainName}`);
+      setContract(null);
+      setContractAddress('');
       return;
     }
 
     try {
+      // Use network RPC URL for read-only operations (no wallet needed)
+      const rpcUrl = getRpcUrl(network.chainId);
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      const contractInstance = new ethers.Contract(contractAddr, daoABI, provider);
+      
+      setContract(contractInstance);
+      setContractAddress(contractAddr);
+      
+      console.log(`📄 Contract initialized on ${network.chainName}: ${contractAddr}`);
+      
+      // Fetch initial data
+      await fetchProposals(contractInstance);
+      await fetchDAOStats(contractInstance);
+    } catch (error) {
+      console.error('❌ Error initializing contract:', error);
+      setContract(null);
+    }
+  }, [currentNetwork]);
 
-      // Get basic DAO stats first
-      const daoStatsData = await contract.getDAOStats();
-      // Extract and set individual stats for UI display
+  // Fetch proposal data from contract
+  const fetchProposals = useCallback(async (contractInstance = contract) => {
+    if (!contractInstance) return;
+
+    try {
+      setIsDataLoading(true);
+      console.log('📋 Fetching proposals from contract...');
+      
+      const proposalIds = await contractInstance.getAllProposalIds();
+      console.log('📋 Found proposal IDs:', proposalIds.length);
+      
+      if (!proposalIds.length) {
+        setProposalDetails([]);
+        return;
+      }
+
+      // Fetch first 6 proposals for landing page
+      const proposals = [];
+      const idsToFetch = proposalIds.slice(0, 6);
+      
+      for (let i = 0; i < idsToFetch.length; i++) {
+        try {
+          const id = idsToFetch[i];
+          const proposal = await contractInstance.getProposal(id);
+          
+          proposals.push({
+            id: Number(id),
+            proposer: proposal.proposer,
+            description: proposal.description || `Proposal #${id}`,
+            projectName: proposal.projectName || proposal.description?.slice(0, 50) + '...' || `Proposal #${id}`,
+            fundingGoal: ethers.formatEther(proposal.fundingGoal || '0'),
+            totalInvested: ethers.formatEther(proposal.totalInvested || '0'),
+            votersFor: Number(proposal.votersFor || 0),
+            votersAgainst: Number(proposal.votersAgainst || 0),
+            endTime: Number(proposal.endTime) || 0,
+            executed: Boolean(proposal.executed),
+            passed: Boolean(proposal.passed),
+            rejected: Boolean(proposal.rejected)
+          });
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch proposal ${idsToFetch[i]}:`, error.message);
+        }
+      }
+      
+      setProposalDetails(proposals);
+      console.log(`📋 Loaded ${proposals.length} proposals for landing page`);
+    } catch (error) {
+      console.error('❌ Error fetching proposals:', error);
+      setProposalDetails([]);
+    } finally {
+      setIsDataLoading(false);
+    }
+  }, [contract]);
+
+  // Fetch DAO statistics
+  const fetchDAOStats = useCallback(async (contractInstance = contract) => {
+    if (!contractInstance) return;
+
+    try {
+      console.log('📊 Fetching DAO statistics...');
+      
+      // Try to get DAO stats
+      const daoStatsData = await contractInstance.getDAOStats().catch(() => null);
+      
       if (daoStatsData) {
-        // Update stats from DAO contract
         setTotalProposals(daoStatsData.totalProposals ? daoStatsData.totalProposals.toString() : '0');
         setActivePrposal(daoStatsData.activeProposals ? Number(daoStatsData.activeProposals) : 0);
         setActiveInvestors(daoStatsData.activeInvestorsCount ? Number(daoStatsData.activeInvestorsCount) : 0);
         setTotalFunded(daoStatsData.totalFunded ? ethers.formatEther(daoStatsData.totalFunded) : '0');
       } else {
-        setTotalProposals('0');
+        // Fallback to basic data
+        const proposalIds = await contractInstance.getAllProposalIds().catch(() => []);
+        setTotalProposals(proposalIds.length.toString());
         setActivePrposal(0);
         setActiveInvestors(0);
         setTotalFunded('0');
       }
-
-
     } catch (error) {
-      // console.error('❌ Error fetching DAO statistics:', error);
-      //  toast.error('Failed to fetch DAO statistics');
-
+      console.warn('⚠️ Error fetching DAO statistics:', error.message);
+      // Set defaults
+      setTotalProposals('0');
+      setActivePrposal(0);
+      setActiveInvestors(0);
+      setTotalFunded('0');
     }
+  }, [contract]);
+
+  // Navigation function for proposal details
+  const proposalData = (pId) => {
+    console.log(pId, "id");
+    localStorage.setItem("proposalId", pId);
+    navigate(`/proposal`);
   };
 
-  // Optimized recent proposals fetching with contract parameter
-  const fetchRecentProposalsWithContract = async (contract) => {
-    if (!contract) {
-      console.warn('⚠️ Contract not provided for proposals');
-      return;
-    }
+  // Initialize contract on component mount
+  useEffect(() => {
+    initializeContract();
+  }, [initializeContract]);
 
-    try {
-      console.log('📋 Fetching recent proposals for landing page...');
-
-      const proposalCount = await contract.getTotalProposals();
-
-      const totalCount = Number(proposalCount);
-      console.log('📊 Total proposals available:', totalCount);
-
-      if (totalCount === 0) {
-        console.log('📋 No proposals found');
-        setProposalDetails([]);
-        return;
-      }
-
-      // Fetch the most recent proposals (limit to 6 for landing page)
-      const recentLimit = Math.min(6, totalCount);
-      const startIndex = Math.max(0, totalCount - recentLimit);
-
-      console.log(`🔍 Fetching ${recentLimit} most recent proposals (starting from ${startIndex})...`);
-
-      const recentProposals = [];
-
-      for (let i = totalCount - 1; i >= startIndex && recentProposals.length < recentLimit; i--) {
-        try {
-          const proposal = await contract.getProposal(i);
-
-          if (proposal) {
-            // Format proposal data for display
-            const currentTime = Math.floor(Date.now() / 1000);
-            const timeRemaining = proposal.endTime ? Math.max(0, Number(proposal.endTime) - currentTime) : 0;
-
-            const formattedProposal = {
-              id: i.toString(),
-              projectName: proposal.projectName || `Proposal #${i}`,
-              description: proposal.description || 'No description available',
-              fundingGoal: proposal.fundingGoal ? ethers.formatEther(proposal.fundingGoal) : '0',
-              totalInvested: proposal.totalInvested ? ethers.formatEther(proposal.totalInvested) : '0',
-              proposer: proposal.proposer || '0x0000000000000000000000000000000000000000',
-              executed: Boolean(proposal.executed),
-              passed: Boolean(proposal.passed),
-              endTime: proposal.endTime ? Number(proposal.endTime) : 0,
-              timeRemaining,
-              deadline: proposal.endTime ? new Date(Number(proposal.endTime) * 1000).toLocaleString() : 'No deadline',
-              // Status for display
-              status: proposal.executed ?
-                (proposal.passed ? 'PASSED' : 'FAILED') :
-                (timeRemaining > 0 ? 'ACTIVE' : 'PENDING')
-            };
-
-            recentProposals.push(formattedProposal);
-            console.log(`✅ Loaded proposal ${i}: ${formattedProposal.projectName}`);
-          }
-        } catch (error) {
-          console.warn(`⚠️ Could not fetch proposal ${i}:`, error.message);
-        }
-      }
-
-      console.log(`📋 Loaded ${recentProposals.length} recent proposals for display`);
-      setProposalDetails(recentProposals);
-
-    } catch (error) {
-      //  console.error('❌ Error fetching recent proposals:', error);
-      //  toast.error('Failed to fetch recent proposals');
-      setProposalDetails([]);
-    }
-  };
-
-  // Legacy function removed - using optimized fetchRecentProposalsWithContract instead
-
-  // Initialize contract
-  const initializeContract = async (network) => {
-
-    const contractAddr = getContractAddress(network.chainId);
-    if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-
-      setDaoContract(null);
-      setProposalDetails([]);
-      setIsLoading(false);
-      return;
-    }
-
-    if (typeof window.ethereum === 'undefined') {
-      toast.error("Please install MetaMask!");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      // Get the appropriate RPC URL for the current network
-      const networkRpcUrl = getRpcUrl(network?.chainId);
-      console.log(`🔗 Using RPC URL: ${networkRpcUrl}`);
-
-      // Create a provider using the network's RPC URL
-      const provider = new ethers.JsonRpcProvider(networkRpcUrl);
-      const contract = new ethers.Contract(contractAddr, daoABI, provider);
-      setDaoContract(contract);
-
-      // Fetch DAO statistics immediately after contract initialization
-      console.log('📊 Fetching DAO statistics after contract initialization...');
-      await fetchDAOStatsWithContract(contract);
-      await fetchRecentProposalsWithContract(contract);
-
-    } catch (error) {
-      console.error("Init error:", error.message);
-      if (error.message.includes("could not detect network")) {
-        toast.error("❌ Failed to connect to the network. Please check your wallet connection.");
-      } else if (error.message.includes("user rejected")) {
-        toast.error("❌ Connection rejected by user.");
-      } else {
-        toast.error(`❌ Failed to initialize contract: ${error.message}`);
-      }
-      setDaoContract(null);
-      setProposalDetails([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-
-
-
-  // Removed redundant useEffect - data is now fetched directly in initializeContract
-
-  // Navigate to proposal details
-  const proposalData = (proposalId) => {
-    console.log('Navigating to proposal:', proposalId);
-    localStorage.setItem("proposalId", proposalId);
-    navigate('/proposal');
-  };
 
   return (
     <>
@@ -741,16 +678,14 @@ function Landing() {
           <div className="text-center mb-5">
             <h2 className="display-5 fw-bold">Active Proposals</h2>
             <p className="lead text-muted">Discover innovative projects seeking funding through our DAO</p>
-            {currentNetwork && (
-              <small className="text-muted">
-                <i className="fas fa-network-wired me-1"></i>
-                Connected to {currentNetwork.chainName}
-              </small>
-            )}
+            <small className="text-muted">
+              <i className="fas fa-network-wired me-1"></i>
+              Connected to {currentNetwork.chainName}
+            </small>
           </div>
 
           {/* Loading State */}
-          {isLoading && (
+          {isDataLoading && (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading proposals...</span>
@@ -759,26 +694,8 @@ function Landing() {
             </div>
           )}
 
-          {/* No Network Connected */}
-          {!currentNetwork && !isLoading && (
-            <div className="text-center py-5">
-              <div className="mb-4">
-                <i className="fas fa-plug fa-4x text-muted opacity-50"></i>
-              </div>
-              <h4 className="text-muted">No Network Connected</h4>
-              <p className="text-muted mb-4">Please connect to a network to view proposals</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="btn btn-outline-primary"
-              >
-                <i className="fas fa-refresh me-2"></i>
-                Refresh Page
-              </button>
-            </div>
-          )}
-
           {/* No Proposals Found */}
-          {currentNetwork && !isLoading && proposalDetails.length === 0 && (
+          {!isDataLoading && proposalDetails.length === 0 && (
             <div className="text-center py-5">
               <div className="mb-4">
                 <i className="fas fa-inbox fa-4x text-muted opacity-50"></i>
@@ -798,7 +715,7 @@ function Landing() {
                   Submit Proposal
                 </button>
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => initializeContract()}
                   className="btn btn-outline-secondary"
                 >
                   <i className="fas fa-refresh me-2"></i>
@@ -808,8 +725,9 @@ function Landing() {
             </div>
           )}
 
+
           {/* Proposals Grid */}
-          {!isLoading && proposalDetails.length > 0 && (
+          {!isDataLoading && proposalDetails.length > 0 && (
             <div className="row g-4">
               {proposalDetails.map((proposal) => (
                 <div key={proposal.id} className="col-md-6 col-lg-4">
@@ -858,11 +776,11 @@ function Landing() {
                           <div className="row g-2">
                             <div className="col-6">
                               <small className="text-muted d-block">Funding Goal</small>
-                              <strong className="text-primary">{proposal.fundingGoal} ETH</strong>
+                              <strong className="text-primary">{proposal.fundingGoal} GNJS</strong>
                             </div>
                             <div className="col-6">
                               <small className="text-muted d-block">Invested</small>
-                              <strong className="text-success">{proposal.totalInvested} ETH</strong>
+                              <strong className="text-success">{proposal.totalInvested} GNJS</strong>
                             </div>
                           </div>
                         </div>
@@ -891,7 +809,7 @@ function Landing() {
           )}
 
           {/* Show More Button */}
-          {!isLoading && proposalDetails.length > 0 && (
+          {!isDataLoading && proposalDetails.length > 0 && (
             <div className="text-center mt-5">
               <button
                 onClick={navigateToDashboard}
@@ -1427,15 +1345,17 @@ function Landing() {
                   <div className="bg-white p-4 rounded shadow-sm h-100">
                     <i className="fas fa-envelope fa-2x text-primary mb-3"></i>
                     <h6 className="fw-bold">Email</h6>
-                    <p className="text-muted mb-0">hello@ganjesdao.org</p>
+                    <p className="text-muted mb-0">support@ganjes.net</p>
                   </div>
                 </div>
                 <div className="col-md-4 text-center">
-                  <div className="bg-white p-4 rounded shadow-sm h-100">
-                    <i className="fab fa-discord fa-2x text-primary mb-3"></i>
-                    <h6 className="fw-bold">Discord</h6>
-                    <p className="text-muted mb-0">Join our community</p>
-                  </div>
+                  <a href="http://discord.com/invite/Q3tg4uqBYW" target="_blank">
+                    <div className="bg-white p-4 rounded shadow-sm h-100">
+                      <i className="fab fa-discord fa-2x text-primary mb-3"></i>
+                      <h6 className="fw-bold">Discord</h6>
+                      <p className="text-muted mb-0">Join our community</p>
+                    </div>
+                  </a>
                 </div>
                 <div className="col-md-4 text-center">
                   <div className="bg-white p-4 rounded shadow-sm h-100">
@@ -1483,6 +1403,9 @@ function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Toast Container for notifications */}
+      <ToastContainer position="top-right" autoClose={5000} />
     </>
   );
 }

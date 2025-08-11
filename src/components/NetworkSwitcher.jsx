@@ -1,96 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'react-toastify';
-import { NETWORKS, getNetworkByChainId, isTestnet } from '../utils/networks';
+import { NETWORKS, isTestnet } from '../utils/networks';
+import { useWallet } from '../context/WalletContext';
 
-const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true }) => {
-  const [currentNetwork, setCurrentNetwork] = useState(null);
+const NetworkSwitcher = ({ showTestnets = true }) => {
+  const { currentNetwork, switchNetwork, getAvailableNetworks, isDataLoading } = useWallet();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Check current network on component mount
-  useEffect(() => {
-    checkCurrentNetwork();
-
-    // Listen for network changes
-    if (window.ethereum) {
-      window.ethereum.on('chainChanged', handleChainChanged);
-      return () => {
-        window.ethereum.removeListener('chainChanged', handleChainChanged);
-      };
-    }
-  }, []);
-
-  const handleChainChanged = (chainId) => {
-    const network = getNetworkByChainId(chainId);
-    setCurrentNetwork(network);
-    if (onNetworkChange) {
-      onNetworkChange(network);
-    }
-  };
-
-  const checkCurrentNetwork = async () => {
-    if (!window.ethereum) return;
-
+  // Switch network using wallet context (no wallet connection needed)
+  const handleNetworkSwitch = async (network) => {
     try {
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-      const network = getNetworkByChainId(chainId);
-      setCurrentNetwork(network);
-      if (onNetworkChange) {
-        onNetworkChange(network);
-      }
-    } catch (error) {
-      console.error('Error checking network:', error);
-    }
-  };
-
-  const switchNetwork = async (network) => {
-    if (!window.ethereum) {
-      toast.error('Please install MetaMask or another Web3 wallet!');
-      return;
-    }
-
-    try {
-      // Try to switch to the network
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: network.chainId }],
-      });
-
-      setCurrentNetwork(network);
       setIsDropdownOpen(false);
-      //  toast.success(`Switched to ${network.chainName}!`);
-
-      if (onNetworkChange) {
-        onNetworkChange(network);
-      }
-    } catch (switchError) {
-      // If the network doesn't exist, add it (only for custom networks)
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [network],
-          });
-
-          setCurrentNetwork(network);
-          setIsDropdownOpen(false);
-          // toast.success(`Added and switched to ${network.chainName}!`);
-
-          if (onNetworkChange) {
-            onNetworkChange(network);
-          }
-        } catch (addError) {
-          toast.error(`Failed to add ${network.chainName}. Please add it manually.`);
-          console.error('Error adding network:', addError);
-        }
-      } else {
-        toast.error(`Failed to switch to ${network.chainName}`);
-        console.error('Error switching network:', switchError);
-      }
+      await switchNetwork(network); // Uses network provider from WalletContext
+    } catch (error) {
+      console.error('Error switching network:', error);
+      toast.error(`Failed to switch to ${network.chainName}`);
     }
   };
 
   const getNetworksList = () => {
-    const networksList = Object.values(NETWORKS);
+    const networksList = getAvailableNetworks(); // Get from wallet context
     if (!showTestnets) {
       return networksList.filter(network => !isTestnet(network.chainId));
     }
@@ -98,8 +27,8 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
   };
 
   const getNetworkStatus = (network) => {
-    if (!currentNetwork) return 'disconnected';
-    return currentNetwork.chainId === network.chainId ? 'connected' : 'available';
+    if (!currentNetwork) return 'available';
+    return currentNetwork.chainId === network.chainId ? 'selected' : 'available';
   };
 
   return (
@@ -107,6 +36,7 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
       {/* Current Network Display */}
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+        disabled={isDataLoading}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -116,12 +46,13 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
           color: 'white',
           border: 'none',
           borderRadius: '8px',
-          cursor: 'pointer',
+          cursor: isDataLoading ? 'not-allowed' : 'pointer',
           fontSize: '14px',
           fontWeight: '500',
           transition: 'all 0.3s ease',
           minWidth: '180px',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          opacity: isDataLoading ? 0.7 : 1
         }}
         onMouseEnter={(e) => {
           e.target.style.opacity = '0.9';
@@ -134,9 +65,11 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '16px' }}>
-            {currentNetwork ? currentNetwork.icon : '❓'}
+            {isDataLoading ? '🔄' : (currentNetwork ? currentNetwork.icon : '❓')}
           </span>
-          <span>{currentNetwork ? currentNetwork.chainName : 'Select Network'}</span>
+          <span>
+            {isDataLoading ? 'Switching...' : (currentNetwork ? currentNetwork.chainName : 'Select Network')}
+          </span>
         </div>
         <span style={{ fontSize: '12px' }}>
           {isDropdownOpen ? '▲' : '▼'}
@@ -161,19 +94,21 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
           {/* Networks List */}
           {getNetworksList().map((network) => {
             const status = getNetworkStatus(network);
-            const isActive = status === 'connected';
+            const isActive = status === 'selected';
 
             return (
               <div key={network.chainId}>
                 <button
-                  onClick={() => switchNetwork(network)}
+                  onClick={() => handleNetworkSwitch(network)}
+                  disabled={isDataLoading || isActive}
                   style={{
                     width: '100%',
                     padding: '12px 15px',
                     border: 'none',
                     backgroundColor: isActive ? '#f8f9fa' : 'white',
                     color: isActive ? network.color : '#333',
-                    cursor: 'pointer',
+                    cursor: (isDataLoading || isActive) ? 'not-allowed' : 'pointer',
+                    opacity: (isDataLoading || isActive) ? 0.7 : 1,
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px',
@@ -181,12 +116,12 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
                     transition: 'background-color 0.2s ease'
                   }}
                   onMouseEnter={(e) => {
-                    if (!isActive) {
+                    if (!isActive && !isDataLoading) {
                       e.target.style.backgroundColor = '#f8f9fa';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!isActive) {
+                    if (!isActive && !isDataLoading) {
                       e.target.style.backgroundColor = 'white';
                     }
                   }}
@@ -206,13 +141,13 @@ const NetworkSwitcher = ({ onNetworkChange, selectedNetwork, showTestnets = true
                       color: network.color,
                       fontWeight: '600'
                     }}>
-                      ✓ Connected
+                      ✓ Selected
                     </span>
                   )}
                 </button>
 
                 {/* Faucet Link for Testnets */}
-                {network.faucetUrl && status === 'connected' && (
+                {network.faucetUrl && status === 'selected' && (
                   <div style={{
                     padding: '8px 15px',
                     backgroundColor: '#e3f2fd',

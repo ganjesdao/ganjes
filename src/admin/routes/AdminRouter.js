@@ -14,6 +14,7 @@ import Investors from '../components/investors/Investors';
 import Executed from '../components/executed/Executed';
 import ProposalManagement from '../components/proposals/ProposalManagement';
 import ProposalDetails from '../components/proposals/ProposalDetails';
+import AdminManagement from '../components/administrators/AdminManagement';
 // Route Guards
 import ProtectedRoute from './ProtectedRoute';
 
@@ -69,6 +70,12 @@ const AdminRouter = () => {
               <Route
                 path="/executed"
                 element={<Executed />}
+              />
+
+              {/* Administrator Management */}
+              <Route
+                path="/administrators"
+                element={<AdminManagement />}
               />
 
               {/* Default redirect to dashboard */}

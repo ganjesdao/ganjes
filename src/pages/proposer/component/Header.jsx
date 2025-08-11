@@ -151,7 +151,7 @@ function Header({ isToggle, setIsToggle, onNetworkChange }) {
               </a>
             </li>
             <li>
-              <a className="dropdown-item" href="#!">
+              <a className="dropdown-item" href="activity-log">
                 Activity Log
               </a>
             </li>

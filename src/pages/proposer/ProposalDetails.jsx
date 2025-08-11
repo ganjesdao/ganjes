@@ -7,45 +7,33 @@ import { daoABI } from '../../Auth/Abi';
 import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
 import { toast } from 'react-toastify';
-import { getContractAddress, getRpcUrl, isTestnet } from '../../utils/networks';
-import { FaEye, FaVoteYea, FaCoins, FaThumbsUp, FaThumbsDown, FaClock, FaUser, FaCheckCircle, FaExclamationTriangle, FaChartLine, FaExternalLinkAlt, FaCalendarAlt, FaTimes } from 'react-icons/fa';
-
-
-// Simple ERC20 ABI for token operations
-const tokenABI = [
-  "function approve(address spender, uint256 amount) external returns (bool)",
-  "function balanceOf(address account) external view returns (uint256)",
-  "function transfer(address to, uint256 amount) external returns (bool)",
-  "function transferFrom(address from, address to, uint256 amount) external returns (bool)"
-];
+import { getContractAddress, getRpcUrl, isTestnet, getNetworkByChainId } from '../../utils/networks';
+import { FaEye, FaClock, FaUser, FaCheckCircle, FaChartLine, FaExternalLinkAlt, FaCalendarAlt, FaThumbsUp, FaThumbsDown } from 'react-icons/fa';
+import { tokenABI } from '../../utils/Tokenabi';
 
 function ProposalDetails() {
   const timestamp = Math.floor(Date.now() / 1000);
   const isoTimestamp = new Date().toISOString();
-  const [support, setSupport] = useState(true);
   const navigate = useNavigate();
   const pId = localStorage.getItem('proposalId');
   const [walletAddress, setWalletAddress] = useState(null);
-  const [totalInvested, setTotalInvested] = useState(0);
+  const [totalInvested, setTotalInvested] = useState(null);
   const [isToggle, setIsToggle] = useState(false);
-  const [proposalDetails, setProposalDetails] = useState([]);
-  const [fundingGoal, setFundingGoal] = useState(0);
+  const [proposalDetails, setProposalDetails] = useState({});
+  const [fundingGoal, setFundingGoal] = useState(null);
   const [consoleLogs, setConsoleLogs] = useState([]);
   const [daoContract, setDaoContract] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [currentNetwork, setCurrentNetwork] = useState(null);
-  const [contractAddress, setContractAddress] = useState("");
-  const authToken = sessionStorage.getItem('authToken');
-  const tokenContract = process.env.REACT_APP_TOKEN_ADDRESS;
-  const [investmentAmount, setInvestmentAmount] = useState(15);
-  const [proposalId, setProposalId] = useState('');
-  const [signer, setSigner] = useState(null);
-  const [showVoteModal, setShowVoteModal] = useState(false);
-  const [selectedProposalId, setSelectedProposalId] = useState(null);
-  const [voteAmount, setVoteAmount] = useState(15);
+  const [tokenContractInstance, setTokenContractInstance] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentNetwork, setCurrentNetwork] = useState(null);
+  const [contractAddress, setContractAddress] = useState('');
+  const [investorDetails, setInvestorDetails] = useState([]);
+  const [showInvestors, setShowInvestors] = useState(false);
+  const [loadingInvestors, setLoadingInvestors] = useState(false);
+  const authToken = sessionStorage.getItem('authToken');
+  const tokenAddress = process.env.REACT_APP_TOKEN_ADDRESS;
 
-  // Filter states
+  // Filter states (unused but preserved)
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSort, setFilterSort] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,42 +49,48 @@ function ProposalDetails() {
           setWalletAddress(accounts[0]);
         }
       } catch (error) {
-        console.error("Failed to check connected accounts:", error);
+        console.error('Failed to check connected accounts:', error);
       }
+
+      window.ethereum?.on('accountsChanged', (accounts) => {
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
+        } else {
+          setWalletAddress(null);
+          toast.warning('Wallet disconnected. Please reconnect to MetaMask.');
+        }
+      });
+
+      window.ethereum?.on('chainChanged', (chainId) => {
+        const network = getNetworkByChainId(chainId);
+        handleNetworkChange(network);
+      });
+
+      return () => {
+        window.ethereum?.removeListener('accountsChanged', () => { });
+        window.ethereum?.removeListener('chainChanged', () => { });
+      };
     };
 
     checkWalletConnected();
-
-    // Listen for account changes
-    window.ethereum?.on('accountsChanged', (accounts) => {
-      if (accounts.length > 0) {
-        setWalletAddress(accounts[0]);
-      } else {
-        setWalletAddress(null);
-      }
-    });
-
-    return () => {
-      window.ethereum?.removeListener('accountsChanged', () => { });
-    };
   }, []);
 
   // Connect wallet
   const connectWallet = async () => {
     if (!window.ethereum) {
-      toast.error("MetaMask not found. Please install it.");
-      return;
+      toast.error('MetaMask not found. Please install it.');
+      throw new Error('MetaMask not found');
     }
 
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts',
-      });
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       setWalletAddress(accounts[0]);
+      return await provider.getSigner();
     } catch (err) {
-      console.error("Wallet connection failed:", err);
-      toast.error("Failed to connect wallet!");
+      console.error('Wallet connection failed:', err);
+      toast.error('Failed to connect wallet!');
+      throw err;
     }
   };
 
@@ -109,92 +103,84 @@ function ProposalDetails() {
     }
   };
 
-
   // Handle network change
   const handleNetworkChange = (network) => {
     setCurrentNetwork(network);
     if (network) {
       const address = getContractAddress(network.chainId);
       setContractAddress(address);
-
-      // Initialize contract with new network
-      initializeContract(network);
+      fetchProposalDetails(pId, network);
     } else {
-      setContractAddress("");
+      setContractAddress('');
       setDaoContract(null);
-      setProposalDetails([]);
+      setTokenContractInstance(null);
+      setProposalDetails({});
+      setFundingGoal(null);
+      setTotalInvested(null);
     }
   };
 
-  // Initialize contract
-  const initializeContract = async (network) => {
-
-    const contractAddr = getContractAddress(network.chainId);
-
-
-
-    if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-
-      setDaoContract(null);
-      setProposalDetails([]);
-      return;
-    }
-
-    if (typeof window.ethereum === 'undefined') {
-      toast.error("Please install MetaMask!");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const rpcUrl = getRpcUrl(network.chainId);
-
-      const browserProvider = new ethers.BrowserProvider(window.ethereum);
-      await browserProvider.send("eth_requestAccounts", []);
-      const signer = await browserProvider.getSigner();
-      setSigner(signer);
-
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
-
-      const contract = new ethers.Contract(contractAddr, daoABI, provider);
-
-      //setDaoContract(contract);
-
-      fetchProposalDetails(pId, contract)
-
-    } catch (error) {
-      console.error("Init error:", error.message);
-
-      if (error.message.includes("could not detect network")) {
-        toast.error("❌ Failed to connect to the network. Please check your wallet connection.");
-      } else if (error.message.includes("user rejected")) {
-        toast.error("❌ Connection rejected by user.");
-      } else {
-        toast.error(`❌ Failed to initialize contract: ${error.message}`);
+  // Retry logic for RPC calls to mitigate circuit breaker errors
+  const withRetry = async (fn, maxRetries = 3, delay = 2000) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        if (error.code === -32603 && error.message.includes('circuit breaker')) {
+          if (attempt === maxRetries) {
+            throw new Error('Circuit breaker open after max retries. Please try again later or switch RPC providers.');
+          }
+          toast.warn(`Circuit breaker error. Retrying (${attempt}/${maxRetries})...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        } else {
+          throw error;
+        }
       }
-      setDaoContract(null);
-      setProposalDetails([]);
-    } finally {
-      setLoading(false);
     }
   };
 
   // Fetch proposal details
-  const fetchProposalDetails = async (id, contract) => {
-    //console.log('fetching proposal details', id);
+  const fetchProposalDetails = async (id, network) => {
+    if (!id || !network) {
+      console.error('Missing proposal ID or network');
+      toast.error('Invalid proposal ID or network configuration');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
 
-      if (!contract || !id) {
-        console.error('Missing contract or proposal ID');
-        return;
+      const contractAddr = getContractAddress(network.chainId);
+      if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
+        throw new Error('Invalid contract address for the selected network');
       }
 
-      // Fetch proposal data from blockchain
-      const basic = await contract.proposals(id);
-      //console.log('Raw Proposal Data:', basic);
+      const networkConfig = getNetworkByChainId(network.chainId);
+      let provider;
+      for (const url of networkConfig.rpcUrls) {
+        try {
+          provider = new ethers.JsonRpcProvider(url);
+          await provider.getNetwork();
+          break;
+        } catch (error) {
+          console.warn(`RPC ${url} failed:`, error);
+          if (networkConfig.rpcUrls.indexOf(url) === networkConfig.rpcUrls.length - 1) {
+            throw new Error('All RPC URLs failed. Please check your network configuration.');
+          }
+        }
+      }
 
-      // Parse blockchain data
+      const contract = new ethers.Contract(contractAddr, daoABI, provider);
+      setDaoContract(contract);
+
+      const tokenContractInst = new ethers.Contract(tokenAddress, tokenABI, provider);
+      setTokenContractInstance(tokenContractInst);
+
+      const decimals = await withRetry(() => tokenContractInst.decimals());
+      const symbol = await withRetry(() => tokenContractInst.symbol());
+
+      const basic = await withRetry(() => contract.proposals(id));
       const proposalData = {
         id: id,
         proposer: basic.proposer || 'Unknown',
@@ -206,119 +192,62 @@ function ProposalDetails() {
         endTime: basic.endTime || 0n,
         executed: basic.executed || false,
         votersFor: Number(basic.votersFor || 0),
-        votersAgainst: Number(basic.votersAgainst || 0)
+        votersAgainst: Number(basic.votersAgainst || 0),
       };
 
-      //console.log('Parsed Proposal Data:', proposalData);
       setProposalDetails(proposalData);
 
-      // Set formatted values for display
-      const fundingGoalFormatted = ethers.formatUnits(proposalData.fundingGoal, 18);
-      const totalInvestedFormatted = ethers.formatUnits(proposalData.totalInvested, 18);
+      const fundingGoalFormatted = Number(ethers.formatUnits(proposalData.fundingGoal, decimals)).toFixed(2);
+      const totalInvestedFormatted = Number(ethers.formatUnits(proposalData.totalInvested, decimals)).toFixed(2);
 
-      setFundingGoal(parseFloat(fundingGoalFormatted));
-      setTotalInvested(parseFloat(totalInvestedFormatted));
-
+      setFundingGoal(fundingGoalFormatted);
+      setTotalInvested(totalInvestedFormatted);
     } catch (error) {
-      console.error("Error fetching proposal details:", error);
-      toast.error("Failed to fetch proposal details!");
+      console.error('Error fetching proposal details:', error);
+      toast.error(`Failed to fetch proposal details: ${error.message || 'Unknown error'}`);
       setProposalDetails({});
+      setFundingGoal(null);
+      setTotalInvested(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-
-  const closeVoteModal = () => {
-    setShowVoteModal(false);
-    setVoteAmount(15);
-  };
-
-  const handleVoteSubmit = () => {
-    if (pId && voteAmount > 0) {
-      handleVote(pId, voteAmount);
-    } else {
-      toast.error("Please enter a valid vote amount");
-    }
-  };
-
-  const handleVote = async (proposalId, amount) => {
-    //console.log('Proposal ID', proposalId, 'Amount:', amount);
-    if (!contractAddress || !tokenContract || !daoContract) {
-      toast.error("Contract not initialized properly");
+  // Fetch investor details function
+  const fetchInvestorDetails = async (proposalId) => {
+    if (!daoContract) {
+      toast.error('Contract not initialized');
       return;
     }
 
     try {
-      setLoading(true);
-      toast.info("Approving tokens...");
+      setLoadingInvestors(true);
+      const result = await daoContract.getInvestorDetails(proposalId);
+      
+      const [investors, investments, voteSupports, timestamps, hasVotedFlags] = result;
+      
+      const formattedInvestors = investors.map((investor, index) => ({
+        address: investor,
+        investment: ethers.formatEther(investments[index] || '0'),
+        voteSupport: voteSupports[index],
+        timestamp: timestamps[index] ? new Date(Number(timestamps[index]) * 1000).toLocaleString() : 'Unknown',
+        hasVoted: hasVotedFlags[index]
+      }));
 
-      // Convert amount to string for consistency
-      const amountStr = amount.toString();
-
-      await approveTokens(amountStr);
-
-      toast.info("Casting vote...");
-      const tx = await daoContract.vote(proposalId, support, ethers.parseEther(amountStr));
-      await tx.wait();
-
-      toast.success('Vote cast successfully!');
-      closeVoteModal();
-
-
+      setInvestorDetails(formattedInvestors);
+      setShowInvestors(true);
+      toast.success(`Loaded ${formattedInvestors.length} investor details`);
     } catch (error) {
-      toast.error(error.message);
-      console.error('Error voting:', error);
-      if (error.message.includes("insufficient allowance")) {
-        toast.error('Insufficient token allowance. Please approve tokens first.');
-      } else if (error.message.includes("insufficient balance")) {
-        toast.error('Insufficient token balance.');
-      } else if (error.message.includes("user rejected")) {
-        toast.error('Transaction rejected by user.');
-      } else {
-        toast.error('Failed to vote. Check proposal ID, investment amount, and allowance.');
-      }
+      console.error('Fetch investors error:', error.message);
+      toast.error(`Failed to fetch investor details: ${error.message}`);
     } finally {
-      setLoading(false);
+      setLoadingInvestors(false);
     }
-  };
-
-
-  const approveTokens = async (amount) => {
-    if (!tokenContract || !signer) {
-      toast.error("Token contract or signer not initialized");
-      return;
-    }
-
-    try {
-      // Create token contract instance using the address and ABI
-      const tokenContractInstance = new ethers.Contract(tokenContract, tokenABI, signer);
-
-      const tx = await tokenContractInstance.approve(contractAddress, ethers.parseEther(amount));
-      await tx.wait();
-
-      toast.success(`Approved ${amount} tokens for DAO contract!`);
-    } catch (error) {
-      console.error('Error approving tokens:', error);
-      if (error.message.includes("user rejected")) {
-        toast.error('Token approval rejected by user.');
-      } else {
-        toast.error('Failed to approve tokens. Check balance and try again.');
-      }
-      throw error; // Re-throw to handle in voting function
-    }
-  };
-
-
-  const voteAgainsts = () => {
-    setSupport(false);
-    setVoteAmount(1)
   };
 
   const handleProfileDataFetched = (data) => {
     // Optional: Handle Auth result
   };
-
 
   return (
     <>
@@ -352,18 +281,20 @@ function ProposalDetails() {
                           <div className="col-md-8 col-12">
                             <h3 className="card-title mb-2 fw-bold">
                               <FaChartLine className="me-2 floating-icon" />
-                              {proposalDetails.projectName}
+                              {proposalDetails.projectName || 'Unnamed Project'}
                             </h3>
-                            <p className="mb-0 opacity-75">
-                              Proposal ID: #{pId}
-                            </p>
+                            <p className="mb-0 opacity-75">Proposal ID: #{pId}</p>
                           </div>
                           <div className="col-md-4 col-12 text-md-end text-center mt-3 mt-md-0">
                             <span className={`badge ${proposalDetails.executed ? 'bg-success' : 'bg-warning'} rounded-pill px-4 py-2`} style={{ fontSize: '0.9rem' }}>
                               {proposalDetails.executed ? (
-                                <><FaCheckCircle className="me-1" /> Executed</>
+                                <>
+                                  <FaCheckCircle className="me-1" /> Executed
+                                </>
                               ) : (
-                                <><FaClock className="me-1" /> Pending</>
+                                <>
+                                  <FaClock className="me-1" /> Pending
+                                </>
                               )}
                             </span>
                           </div>
@@ -377,13 +308,13 @@ function ProposalDetails() {
                             <div className="position-relative">
                               <img
                                 className="w-100 project-image shadow-sm"
-                                src='assets/image/Landing/canabies-logo.avif'
+                                src="assets/image/Landing/canabies-logo.avif"
                                 alt="Project Logo"
                                 style={{ objectFit: 'cover', height: '250px' }}
                               />
                               <div className="position-absolute top-0 start-0 p-2">
                                 <div className="bg-white rounded-circle p-2 shadow icon-circle">
-                                  <FaVoteYea className="text-primary" />
+                                  <FaChartLine className="text-primary" />
                                 </div>
                               </div>
                             </div>
@@ -397,9 +328,7 @@ function ProposalDetails() {
                                 <FaEye className="me-2" />
                                 Project Description
                               </h5>
-                              <p className="text-muted lh-lg text-truncate-3">
-                                {proposalDetails.description}
-                              </p>
+                              <p className="text-muted lh-lg text-truncate-3">{proposalDetails.description || 'No description available'}</p>
                             </div>
 
                             {/* Project URL */}
@@ -407,7 +336,7 @@ function ProposalDetails() {
                               <h6 className="text-dark mb-2">Project URL</h6>
                               <a
                                 className="btn btn-outline-primary btn-sm rounded-pill px-3"
-                                href={proposalDetails.projectUrl}
+                                href={proposalDetails.projectUrl || '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
                               >
@@ -425,7 +354,7 @@ function ProposalDetails() {
                                       <FaThumbsUp className="text-white" />
                                     </div>
                                     <div>
-                                      <div className="fw-bold text-success">{proposalDetails.votersFor}</div>
+                                      <div className="fw-bold text-success">{proposalDetails.votersFor || 0}</div>
                                       <small className="text-muted">Votes For</small>
                                     </div>
                                   </div>
@@ -436,7 +365,7 @@ function ProposalDetails() {
                                       <FaThumbsDown className="text-white" />
                                     </div>
                                     <div>
-                                      <div className="fw-bold text-danger">{proposalDetails.votersAgainst}</div>
+                                      <div className="fw-bold text-danger">{proposalDetails.votersAgainst || 0}</div>
                                       <small className="text-muted">Votes Against</small>
                                     </div>
                                   </div>
@@ -447,19 +376,19 @@ function ProposalDetails() {
                             {/* Funding Information */}
                             <div className="mb-4">
                               <h6 className="text-dark mb-3">
-                                <FaCoins className="me-2 text-warning" />
+                                <FaChartLine className="me-2 text-warning" />
                                 Funding Information
                               </h6>
                               <div className="row">
                                 <div className="col-md-6 col-12 mb-3">
                                   <div className="stats-card border p-3 text-center">
-                                    <div className="text-primary fw-bold fs-4">GNJ {fundingGoal}</div>
+                                    <div className="text-primary fw-bold fs-4">{fundingGoal ? `${fundingGoal} GNJ` : '0 GNJ'}</div>
                                     <small className="text-muted">Funding Goal</small>
                                   </div>
                                 </div>
                                 <div className="col-md-6 col-12 mb-3">
                                   <div className="stats-card border p-3 text-center">
-                                    <div className="text-success fw-bold fs-4">GNJ {totalInvested}</div>
+                                    <div className="text-success fw-bold fs-4">{totalInvested ? `${totalInvested} GNJ` : '0 GNJ'}</div>
                                     <small className="text-muted">Total Invested</small>
                                   </div>
                                 </div>
@@ -469,17 +398,15 @@ function ProposalDetails() {
                               <div className="mt-3">
                                 <div className="d-flex justify-content-between align-items-center mb-2">
                                   <span className="text-muted">Progress</span>
-                                  <span className="fw-bold">
-                                    {fundingGoal > 0 ? ((totalInvested / fundingGoal) * 100).toFixed(1) : 0}%
-                                  </span>
+                                  <span className="fw-bold">{fundingGoal && Number(fundingGoal) > 0 ? ((Number(totalInvested) / Number(fundingGoal)) * 100).toFixed(1) : 0}%</span>
                                 </div>
                                 <div className="progress" style={{ height: '8px', borderRadius: '10px' }}>
                                   <div
                                     className="progress-bar"
                                     role="progressbar"
                                     style={{
-                                      width: `${fundingGoal > 0 ? (totalInvested / fundingGoal) * 100 : 0}%`,
-                                      borderRadius: '10px'
+                                      width: `${fundingGoal && Number(fundingGoal) > 0 ? (Number(totalInvested) / Number(fundingGoal)) * 100 : 0}%`,
+                                      borderRadius: '10px',
                                     }}
                                   ></div>
                                 </div>
@@ -502,7 +429,7 @@ function ProposalDetails() {
                                 />
                                 <div>
                                   <div className="fw-bold text-truncate" style={{ maxWidth: '200px' }}>
-                                    {proposalDetails.proposer}
+                                    {proposalDetails.proposer || 'Unknown'}
                                   </div>
                                   <small className="text-muted">Proposal Creator</small>
                                 </div>
@@ -522,13 +449,15 @@ function ProposalDetails() {
                                 <div>
                                   <div className="fw-bold">End Date</div>
                                   <small className="text-muted">
-                                    {proposalDetails.endTime && new Date(Number(proposalDetails.endTime) * 1000).toLocaleDateString('en-US', {
-                                      year: 'numeric',
-                                      month: 'long',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
+                                    {proposalDetails.endTime && Number(proposalDetails.endTime) > 0
+                                      ? new Date(Number(proposalDetails.endTime) * 1000).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
+                                      : 'Not set'}
                                   </small>
                                 </div>
                               </div>
@@ -536,8 +465,214 @@ function ProposalDetails() {
                           </div>
                         </div>
                       </div>
+                    </div>
 
+                    {/* Investor Details Section */}
+                    <div className="card border-0 shadow-lg mt-4">
+                      <div className="card-header bg-gradient-primary text-white py-3">
+                        <div className="d-flex justify-content-between align-items-center">
+                          <h5 className="mb-0">
+                            <FaUser className="me-2" />
+                            Investor Details
+                          </h5>
+                          <button
+                            className="btn btn-light btn-sm"
+                            onClick={() => fetchInvestorDetails(pId)}
+                            disabled={loadingInvestors}
+                          >
+                            {loadingInvestors ? (
+                              <>
+                                <div className="spinner-border spinner-border-sm me-2" role="status">
+                                  <span className="visually-hidden">Loading...</span>
+                                </div>
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <FaEye className="me-2" />
+                                View Investors
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
 
+                      <div className="card-body p-0">
+                        {!showInvestors ? (
+                          <div className="text-center py-5">
+                            <FaUser className="text-muted mb-3" style={{ fontSize: '3rem' }} />
+                            <h6 className="text-muted mb-3">Investor Information</h6>
+                            <p className="text-muted mb-4">
+                              Click "View Investors" to see detailed information about investors,<br />
+                              including their investments, votes, and participation timestamps.
+                            </p>
+                            <button
+                              className="btn btn-primary"
+                              onClick={() => fetchInvestorDetails(pId)}
+                              disabled={loadingInvestors}
+                            >
+                              <FaEye className="me-2" />
+                              Load Investor Details
+                            </button>
+                          </div>
+                        ) : investorDetails.length === 0 ? (
+                          <div className="text-center py-5">
+                            <FaUser className="text-muted mb-3" style={{ fontSize: '3rem' }} />
+                            <h6 className="text-muted mb-3">No Investors Found</h6>
+                            <p className="text-muted">
+                              This proposal doesn't have any investors yet.
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Investor Summary Cards */}
+                            <div className="row p-4 pb-0">
+                              <div className="col-md-3 col-6 mb-3">
+                                <div className="stats-card text-center p-3 bg-primary bg-opacity-10 border-primary">
+                                  <div className="fw-bold text-primary h4">{investorDetails.length}</div>
+                                  <small className="text-muted">Total Investors</small>
+                                </div>
+                              </div>
+                              <div className="col-md-3 col-6 mb-3">
+                                <div className="stats-card text-center p-3 bg-success bg-opacity-10 border-success">
+                                  <div className="fw-bold text-success h4">
+                                    {investorDetails.reduce((sum, inv) => sum + parseFloat(inv.investment || 0), 0).toFixed(2)}
+                                  </div>
+                                  <small className="text-muted">Total Investment (GNJ)</small>
+                                </div>
+                              </div>
+                              <div className="col-md-3 col-6 mb-3">
+                                <div className="stats-card text-center p-3 bg-info bg-opacity-10 border-info">
+                                  <div className="fw-bold text-info h4">
+                                    {investorDetails.filter(inv => inv.hasVoted).length}
+                                  </div>
+                                  <small className="text-muted">Voted Investors</small>
+                                </div>
+                              </div>
+                              <div className="col-md-3 col-6 mb-3">
+                                <div className="stats-card text-center p-3 bg-warning bg-opacity-10 border-warning">
+                                  <div className="fw-bold text-warning h4">
+                                    {investorDetails.filter(inv => inv.voteSupport).length}
+                                  </div>
+                                  <small className="text-muted">Support Votes</small>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Investor Table */}
+                            <div className="table-responsive">
+                              <table className="table table-hover mb-0">
+                                <thead className="table-light">
+                                  <tr>
+                                    <th className="px-4 py-3">
+                                      <FaUser className="me-2 text-muted" />
+                                      Investor Address
+                                    </th>
+                                    <th className="px-4 py-3">
+                                      <FaChartLine className="me-2 text-muted" />
+                                      Investment (GNJ)
+                                    </th>
+                                    <th className="px-4 py-3">
+                                      <FaThumbsUp className="me-2 text-muted" />
+                                      Vote
+                                    </th>
+                                    <th className="px-4 py-3">
+                                      <FaCalendarAlt className="me-2 text-muted" />
+                                      Timestamp
+                                    </th>
+                                    <th className="px-4 py-3">
+                                      <FaCheckCircle className="me-2 text-muted" />
+                                      Status
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {investorDetails.map((investor, index) => (
+                                    <tr key={index} className="border-bottom">
+                                      <td className="px-4 py-3">
+                                        <div className="d-flex align-items-center">
+                                          <div className="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
+                                            <FaUser className="text-primary" style={{ fontSize: '0.8rem' }} />
+                                          </div>
+                                          <div>
+                                            <div className="fw-semibold" style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                                              {investor.address.substring(0, 8)}...{investor.address.slice(-6)}
+                                            </div>
+                                            <small className="text-muted">
+                                              {investor.address.substring(0, 20)}...
+                                            </small>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <div className="fw-bold text-success">
+                                          {parseFloat(investor.investment).toFixed(4)} GNJ
+                                        </div>
+                                        <small className="text-muted">
+                                          ${(parseFloat(investor.investment) * 0.1).toFixed(2)} USD
+                                        </small>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        {investor.hasVoted ? (
+                                          <span className={`badge ${investor.voteSupport ? 'bg-success' : 'bg-danger'} bg-opacity-90`}>
+                                            {investor.voteSupport ? (
+                                              <>
+                                                <FaThumbsUp className="me-1" style={{ fontSize: '0.7rem' }} />
+                                                For
+                                              </>
+                                            ) : (
+                                              <>
+                                                <FaThumbsDown className="me-1" style={{ fontSize: '0.7rem' }} />
+                                                Against
+                                              </>
+                                            )}
+                                          </span>
+                                        ) : (
+                                          <span className="badge bg-secondary bg-opacity-50">
+                                            <FaClock className="me-1" style={{ fontSize: '0.7rem' }} />
+                                            Not Voted
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <div className="small">{investor.timestamp}</div>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span className={`badge ${parseFloat(investor.investment) > 0 ? 'bg-success' : 'bg-warning'} bg-opacity-10 text-${parseFloat(investor.investment) > 0 ? 'success' : 'warning'}`}>
+                                          {parseFloat(investor.investment) > 0 ? (
+                                            <>
+                                              <FaCheckCircle className="me-1" style={{ fontSize: '0.7rem' }} />
+                                              Invested
+                                            </>
+                                          ) : (
+                                            <>
+                                              <FaClock className="me-1" style={{ fontSize: '0.7rem' }} />
+                                              Pending
+                                            </>
+                                          )}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Show/Hide Toggle */}
+                            <div className="p-3 bg-light border-top">
+                              <div className="text-center">
+                                <button
+                                  className="btn btn-outline-secondary btn-sm"
+                                  onClick={() => setShowInvestors(false)}
+                                >
+                                  <FaEye className="me-2" />
+                                  Hide Investor Details
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -547,197 +682,6 @@ function ProposalDetails() {
           </div>
         </div>
       </div>
-
-      {/* Vote Modal */}
-      {showVoteModal && (
-        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.7)' }} tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered modal-lg">
-            <div className="modal-content border-0 shadow-lg">
-              {/* Modal Header */}
-              <div className="modal-header gradient-header text-white py-4">
-                <h4 className="modal-title fw-bold mb-0">
-                  <FaVoteYea className="me-3" />
-                  Cast Your Vote
-                </h4>
-                <button type="button" className="btn-close btn-close-white" onClick={closeVoteModal}></button>
-              </div>
-
-              <div className="modal-body p-4">
-                {/* Proposal ID Card */}
-                <div className="text-center mb-4">
-                  <div className="stats-card p-4 shadow-sm">
-                    <div className="d-flex justify-content-center align-items-center mb-3">
-                      <div className="bg-primary rounded-circle p-3 me-3 icon-circle">
-                        <FaVoteYea className="text-white fs-5" />
-                      </div>
-                      <div>
-                        <h6 className="text-muted mb-1">Proposal ID</h6>
-                        <h3 className="text-primary mb-0 fw-bold">#{pId}</h3>
-                      </div>
-                    </div>
-                    <small className="text-muted">
-                      Make your voice heard in the DAO governance
-                    </small>
-                  </div>
-                </div>
-
-                {/* Investment Amount */}
-                <div className="mb-4">
-                  <label htmlFor="voteAmount" className="form-label fw-bold mb-3">
-                    <FaCoins className="text-warning me-2" />
-                    Investment Amount (GNJ tokens)
-                  </label>
-                  <div className="input-group input-group-lg">
-                    <span className="input-group-text bg-warning text-white">
-                      <FaCoins />
-                    </span>
-                    <input
-                      type="number"
-                      className="form-control border-0 shadow-sm"
-                      id="voteAmount"
-                      value={voteAmount}
-                      onChange={(e) => setVoteAmount(e.target.value)}
-                      min="1"
-                      placeholder="Enter amount to invest"
-                      style={{ fontSize: '1.1rem' }}
-                    />
-                    <span className="input-group-text bg-light text-muted">GNJ</span>
-                  </div>
-                  <div className="form-text text-muted mt-2">
-                    <small>
-                      <FaExclamationTriangle className="me-1 text-warning" />
-                      Minimum: 1 GNJ token required
-                    </small>
-                  </div>
-                </div>
-
-                {/* Vote Preference */}
-                <div className="mb-4">
-                  <label className="form-label fw-bold mb-3">
-                    <FaVoteYea className="text-primary me-2" />
-                    Vote Preference
-                  </label>
-                  <div className="row g-3">
-                    <div className="col-md-6 col-12">
-                      <div
-                        className={`vote-card ${support ? 'bg-success bg-opacity-10 border-success selected' : 'bg-light'}`}
-                        onClick={() => setSupport(true)}
-                      >
-                        <div className="card-body text-center p-3">
-                          <div className="form-check">
-                            <input
-                              type="radio"
-                              className="form-check-input"
-                              id="voteFor"
-                              name="votePreference"
-                              checked={support}
-                              onChange={() => setSupport(true)}
-                            />
-                            <label className="form-check-label w-100" htmlFor="voteFor">
-                              <div className="d-flex flex-column align-items-center">
-                                <div className="bg-success rounded-circle p-3 mb-2 icon-circle">
-                                  <FaThumbsUp className="text-white fs-4" />
-                                </div>
-                                <h6 className="text-success fw-bold mb-1">Vote For</h6>
-                                <small className="text-muted">Support this proposal</small>
-                              </div>
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-md-6 col-12">
-                      <div className={`vote-card ${!support ? 'bg-danger bg-opacity-10 border-danger selected' : 'bg-light'}`} onClick={() => voteAgainsts()}>
-                        <div className="card-body text-center p-3">
-                          <div className="form-check">
-                            <input
-                              type="radio"
-                              className="form-check-input"
-                              id="voteAgainst"
-                              name="votePreference"
-                              checked={!support}
-                              onChange={() => voteAgainsts()}
-                            />
-                            <label className="form-check-label w-100" htmlFor="voteAgainst">
-                              <div className="d-flex flex-column align-items-center">
-                                <div className="bg-danger rounded-circle p-3 mb-2 icon-circle">
-                                  <FaThumbsDown className="text-white fs-4" />
-                                </div>
-                                <h6 className="text-danger fw-bold mb-1">Vote Against</h6>
-                                <small className="text-muted">Oppose this proposal</small>
-                              </div>
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Vote Summary */}
-                <div className={`alert ${support ? 'alert-success' : 'alert-danger'} border-0 shadow-sm`}>
-                  <div className="d-flex align-items-center">
-                    <div className={`${support ? 'bg-success' : 'bg-danger'} rounded-circle p-2 me-3`}>
-                      {support ? <FaThumbsUp className="text-white" /> : <FaThumbsDown className="text-white" />}
-                    </div>
-                    <div>
-                      <strong>Vote Summary:</strong>
-                      <div className="mt-1">
-                        You are voting <strong>{support ? 'FOR' : 'AGAINST'}</strong> this proposal with{' '}
-                        <strong>{voteAmount} GNJ tokens</strong>.
-                      </div>
-                      <small className="text-muted mt-1 d-block">
-                        Your investment will be used to support the project if the proposal passes.
-                      </small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="modal-footer bg-light border-0 p-4">
-                <div className="row w-100">
-                  <div className="col-md-6 col-12 mb-2 mb-md-0">
-                    <button
-                      type="button"
-                      className="btn btn-outline-secondary btn-lg w-100 rounded-pill"
-                      onClick={closeVoteModal}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                  <div className="col-md-6 col-12">
-                    <button
-                      type="button"
-                      className="btn btn-gradient btn-lg w-100 rounded-pill text-white"
-                      onClick={handleVoteSubmit}
-                      disabled={loading || !voteAmount || voteAmount <= 0}
-                      style={{
-                        background: support
-                          ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)'
-                          : 'linear-gradient(135deg, #dc3545 0%, #fd7e14 100%)',
-                        border: 'none'
-                      }}
-                    >
-                      {loading ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <FaVoteYea className="me-2" />
-                          Cast Vote {support ? 'For' : 'Against'}
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -76,12 +76,12 @@ function Header({ setIsToggle, onNetworkChange }) {
           </a>
           <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
             <li>
-              <a className="dropdown-item" href="#!">
+              <a className="dropdown-item" href="investor-settings">
                 Settings
               </a>
             </li>
             <li>
-              <a className="dropdown-item" href="#!">
+              <a className="dropdown-item" href="investor-activity-log">
                 Activity Log
               </a>
             </li>

@@ -20,6 +20,20 @@ function Sidebar({ isToggle, setIsToggle }) {
                         My Voting
                     </Link>
 
+                    <Link className="nav-link text-white" to="/investor-activity-log">
+                        <div className="sb-nav-link-icon text-white">
+                            <i className="fas fa-history" />
+                        </div>
+                        Activity Log
+                    </Link>
+
+                    <Link className="nav-link text-white" to="/investor-settings">
+                        <div className="sb-nav-link-icon text-white">
+                            <i className="fas fa-cog" />
+                        </div>
+                        Settings
+                    </Link>
+
 
                 </div>
             </div>

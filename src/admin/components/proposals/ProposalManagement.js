@@ -11,7 +11,7 @@ import PageHeader from '../common/PageHeader';
 import { daoABI } from '../../../Auth/Abi';
 import { ethers } from 'ethers';
 import { toast } from 'react-toastify';
-import { getContractAddress, NETWORKS } from '../../../utils/networks';
+import { getContractAddress, getRpcUrl, NETWORKS } from '../../../utils/networks';
 import axios from 'axios';
 
 const ProposalManagement = () => {
@@ -21,6 +21,8 @@ const ProposalManagement = () => {
   const [loading, setLoading] = useState(false);
   const [currentNetwork, setCurrentNetwork] = useState(null);
   const [contractAddress, setContractAddress] = useState("");
+  const [userAddress, setUserAddress] = useState("");
+  const [isNetworkSupported, setIsCurrentNetwork] = useState(true);
 
 
   // Filter states
@@ -115,67 +117,26 @@ const ProposalManagement = () => {
     if (typeof window.ethereum !== 'undefined') {
       try {
         const provider = new ethers.BrowserProvider(window.ethereum);
-        const network = await provider.getNetwork();
-        const chainId = '0x' + network.chainId.toString(16);
 
-        const networkConfig = Object.values(NETWORKS).find(n => n.chainId === chainId);
-        if (networkConfig) {
-          setCurrentNetwork(networkConfig);
-          const address = getContractAddress(chainId);
-          setContractAddress(address);
-          await initializeContract(address);
-        }
+
+        console.log('provider', provider);
+
       } catch (error) {
         toast.info("Please connect your wallet and select a network");
       }
     }
   };
 
-  const switchNetwork = async (network) => {
-    if (typeof window.ethereum === 'undefined') {
-      toast.error("Please install MetaMask!");
-      return;
-    }
 
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: network.chainId }],
-      });
 
-      setCurrentNetwork(network);
-      const address = getContractAddress(network.chainId);
-      setContractAddress(address);
-      await initializeContract(address);
 
-      toast.success(`Switched to ${network.chainName}`);
-    } catch (error) {
-      if (error.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: network.chainId,
-              chainName: network.chainName,
-              nativeCurrency: network.nativeCurrency,
-              rpcUrls: network.rpcUrls,
-              blockExplorerUrls: network.blockExplorerUrls,
-            }],
-          });
-          setCurrentNetwork(network);
-          const address = getContractAddress(network.chainId);
-          setContractAddress(address);
-          await initializeContract(address);
-        } catch (addError) {
-          toast.error("Failed to add network");
-        }
-      } else {
-        toast.error("Failed to switch network");
-      }
-    }
-  };
+  const initializeContract = async (network) => {
 
-  const initializeContract = async (contractAddr) => {
+    const contractAddr = getContractAddress(network.chainId);
+    setContractAddress(contractAddr);
+
+    console.log('Current Network', network)
+    console.log('Contract Address', contractAddr);
     if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
 
       setDaoContract(null);
@@ -190,17 +151,24 @@ const ProposalManagement = () => {
 
     try {
       setLoading(true);
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
+      // const provider = new ethers.BrowserProvider(window.ethereum);
+      // await provider.send("eth_requestAccounts", []);
+      // const signer = await provider.getSigner();
 
-      const contract = new ethers.Contract(contractAddr, daoABI, signer);
+      const rpcUrl = getRpcUrl(network.chainId);
+      console.log('RPC Url', rpcUrl);
+
+
+
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+
+      const contract = new ethers.Contract(contractAddr, daoABI, provider);
       setDaoContract(contract);
 
       const ids = await contract.getAllProposalIds();
       await getProposalDetails(ids, contract);
 
-      toast.success(`✅ Connected to DAO contract on ${currentNetwork?.chainName}`);
+      // toast.success(`✅ Connected to DAO contract on ${currentNetwork?.chainName}`);
     } catch (error) {
       console.error("Init error:", error.message);
       //  toast.error(`❌ Failed to initialize contract: ${error.message}`);
@@ -248,40 +216,7 @@ const ProposalManagement = () => {
     }
   };
 
-  const executeProposal = async (proposalId) => {
-    if (!daoContract) {
-      toast.error("Contract not initialized");
-      return;
-    }
 
-    try {
-      setLoading(true);
-      toast.info("Executing proposal...");
-
-      const tx = await daoContract.executeProposal(proposalId);
-      await tx.wait();
-
-      toast.success('Proposal executed successfully!');
-
-      // Refresh proposal details
-      const ids = await daoContract.getAllProposalIds();
-      await getProposalDetails(ids, daoContract);
-
-    } catch (error) {
-      console.error('Error executing proposal:', error);
-      if (error.message.includes("user rejected")) {
-        toast.error('Transaction rejected by user.');
-      } else if (error.message.includes("Proposal already executed")) {
-        toast.error('Proposal has already been executed.');
-      } else if (error.message.includes("Voting period not ended")) {
-        toast.error('Voting period has not ended yet.');
-      } else {
-        toast.error('Failed to execute proposal. Check console for details.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Filter and sort proposals (same logic as investor dashboard)
   const getFilteredProposals = () => {
@@ -329,9 +264,7 @@ const ProposalManagement = () => {
     return filtered;
   };
 
-  const isNetworkSupported = () => {
-    return currentNetwork && contractAddress && contractAddress !== '0x0000000000000000000000000000000000000000';
-  };
+
 
   if (!auth.isAuthenticated) {
     return (
@@ -355,8 +288,33 @@ const ProposalManagement = () => {
     window.location.href = "proposal-details";
   };
 
+  // Dummy handlers for UI components
+  const handleNetworkChange = async (network) => {
+    const contractAddress = getContractAddress(network.chainId);
+    setContractAddress(contractAddress);
+
+
+    if (!window.ethereum) {
+      console.error("Please install MetaMask or another Web3 wallet!");
+      return;
+    }
+    // Connect to wallet
+    const browserProvider = new ethers.BrowserProvider(window.ethereum);
+    await browserProvider.send("eth_requestAccounts", []); // Request wallet connection
+    const signer = await browserProvider.getSigner();
+    setUserAddress(signer.address);
+    console.log('User Address:', signer.address);
+    initializeContract(network);
+
+    // fetchedProposal(network)
+
+  };
+
+
   return (
-    <AdminPageLayout>
+    <AdminPageLayout
+      onNetworkChange={handleNetworkChange}
+    >
       {({ isMobile }) => (
         <>
 
@@ -376,7 +334,7 @@ const ProposalManagement = () => {
               }}></div>
               <p style={{ fontSize: isMobile ? '0.875rem' : '1rem' }}>Loading proposals from blockchain...</p>
             </div>
-          ) : isNetworkSupported() ? (
+          ) : isNetworkSupported ? (
             <>
               {/* Summary Cards */}
               <div style={{

@@ -45,6 +45,54 @@ function CreateProposal() {
         }
     };
 
+    // Check wallet connection and listen for account/network changes
+    useEffect(() => {
+        const checkWalletConnected = async () => {
+            if (!window.ethereum) {
+                toast.error('MetaMask is not installed. Please install it to use this DApp.');
+                return;
+            }
+
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                if (accounts.length > 0) {
+                    setUserAddress(accounts[0]);
+
+                } else {
+                    setUserAddress(null);
+
+                }
+            } catch (error) {
+                console.error('Failed to check connected accounts:', error);
+                toast.error('Failed to connect to MetaMask. Please ensure it is unlocked.');
+            }
+        };
+
+        checkWalletConnected();
+
+        // Listen for account changes
+        window.ethereum?.on('accountsChanged', (accounts) => {
+            if (accounts.length > 0) {
+                setUserAddress(accounts[0]);
+
+                if (currentNetwork) {
+                    handleNetworkChange(currentNetwork);
+                }
+            } else {
+                setUserAddress(null);
+                toast.warning('Wallet disconnected. Please reconnect to MetaMask.');
+            }
+        });
+
+
+        // Cleanup listeners on unmount
+        return () => {
+            window.ethereum?.removeListener('accountsChanged', () => { });
+            window.ethereum?.removeListener('chainChanged', () => { });
+        };
+    }, [currentNetwork, handleNetworkChange]);
+
+
     // Helper function to check if network is supported
     const isNetworkSupported = () => {
         return currentNetwork && contractAddress && contractAddress !== '0x0000000000000000000000000000000000000000';
@@ -88,6 +136,9 @@ function CreateProposal() {
 
     // Function to fetch comprehensive proposal requirements
     const fetchTokenRequirements = async () => {
+
+
+
         try {
             console.log("Fetching token requirements...", contractAddress);
             if (!window.ethereum || !contractAddress || !governanceTokenAddress) return;
@@ -100,21 +151,25 @@ function CreateProposal() {
 
             console.log("Connected to address:", address);
 
+            const rpcUrl = getRpcUrl(currentNetwork.chainId);
+            const browserProvider = new ethers.JsonRpcProvider(rpcUrl);
+
 
             // Get DAO contract instance
-            const contract = new ethers.Contract(contractAddress, daoABI, provider);
+            const contract = new ethers.Contract(contractAddress, daoABI, browserProvider);
 
 
             console.log("✅ Connected to DAO contract", contract);
 
 
             // Get governance token contract instance
-            const tokenContractInstance = new ethers.Contract(governanceTokenAddress, tokenABI, provider);
+            const tokenContractInstance = new ethers.Contract(governanceTokenAddress, tokenABI, browserProvider);
             setTokenContract(tokenContractInstance);
 
             // Fetch comprehensive requirements
             const minTokens = await contract.MIN_TOKENS_FOR_PROPOSAL();
             setMinTokensForProposal(minTokens);
+
 
             console.log(`Proposal Token fee: ${ethers.formatEther(minTokens)} tokens`);
 

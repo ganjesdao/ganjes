@@ -20,6 +20,13 @@ function Sidebar({ isToggle, setIsToggle }) {
                         Create Proposal
                     </a>
 
+                    <a className="nav-link" href="/activity-log">
+                        <div className="sb-nav-link-icon">
+                            <i className="fas fa-history" />
+                        </div>
+                        Activity Log
+                    </a>
+
 
                     {/* 
                     <a className="nav-link" href="">

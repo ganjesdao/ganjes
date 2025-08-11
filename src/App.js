@@ -22,6 +22,9 @@ import Proposal from './pages/Landing/Proposal';
 import Vote from './pages/Investor/Vote';
 import MyVoting from './pages/Investor/MyVoting';
 import ProposalDetails from './pages/proposer/ProposalDetails';
+import ActivityLog from './pages/proposer/ActivityLog';
+import InvestorActivityLog from './pages/Investor/ActivityLog';
+import InvestorSettings from './pages/Investor/Settings';
 import AdminApp from './admin/AdminApp';
 
 
@@ -55,6 +58,7 @@ function App() {
             <Route path="/create-proposal" element={<CreateProposal />} />
             <Route path="/proposal-create" element={<ProposalCreate />} />
             <Route path="/proposal-details" element={<ProposalDetails />} />
+            <Route path="/activity-log" element={<ActivityLog />} />
 
             {/* Investor routes */}
             <Route path="/investor-login" element={<Login />} />
@@ -63,6 +67,8 @@ function App() {
             <Route path="/investor-analytics" element={<Analytics />} />
             <Route path="/investor-vote" element={<Vote />} />
             <Route path="/investor-voting-data" element={<MyVoting />} />
+            <Route path="/investor-activity-log" element={<InvestorActivityLog />} />
+            <Route path="/investor-settings" element={<InvestorSettings />} />
 
             <Route path="/investor-join" element={<JoinInvestor />} />
 

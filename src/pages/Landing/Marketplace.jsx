@@ -3,24 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { ethers } from 'ethers';
 import '../../styles/GalaxySlider.css';
 import Header from './Inculde/Header';
-import { getContractAddress, isTestnet, getRpcUrl } from '../../utils/networks';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Footer from './Inculde/Footer';
+import { getContractAddress, getRpcUrl, NETWORKS } from '../../utils/networks';
 import { daoABI } from '../../Auth/Abi';
 
-
-
 function MarketPlace() {
-  const [walletAddress, setWalletAddress] = useState(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
-  const [daoContract, setDaoContract] = useState(null);
+  const [walletAddress, setWalletAddress] = useState(null);
+  const [currentNetwork, setCurrentNetwork] = useState(NETWORKS.BSC_TESTNET);
+  const [contractAddress, setContractAddress] = useState('');
+  const [contract, setContract] = useState(null);
   const [proposalDetails, setProposalDetails] = useState([]);
-  const [isSliderLoading, setIsSliderLoading] = useState(true); // For slider
-  const [isLoading, setIsLoading] = useState(false); // For blockchain data
-  const [contractAddress, setContractAddress] = useState("");
-  const [currentNetwork, setCurrentNetwork] = useState(null);
+  const [isDataLoading, setIsDataLoading] = useState(false);
+
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isSliderLoading, setIsSliderLoading] = useState(true);
 
   // Slider data (unchanged)
   const sliderData = [
@@ -138,7 +137,7 @@ function MarketPlace() {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [nextSlide, prevSlide]);
 
-  // Wallet connection check
+  // Check if wallet is already connected on component mount
   useEffect(() => {
     const checkWalletConnected = async () => {
       if (!window.ethereum) return;
@@ -164,27 +163,25 @@ function MarketPlace() {
       }
     });
 
+    // Cleanup listener on unmount
     return () => {
       window.ethereum?.removeListener('accountsChanged', () => { });
     };
   }, []);
 
-  // Connect wallet
   const connectWallet = async () => {
     if (!window.ethereum) {
-      toast.error("MetaMask not found. Please install it.");
+      alert("MetaMask not found. Please install it.");
       return;
     }
 
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
       const accounts = await window.ethereum.request({
         method: 'eth_requestAccounts',
       });
       setWalletAddress(accounts[0]);
     } catch (err) {
       console.error("Wallet connection failed:", err);
-      toast.error("Failed to connect wallet!");
     }
   };
 
@@ -235,169 +232,121 @@ function MarketPlace() {
     );
   }, []);
 
-  // Handle network change
-  const handleNetworkChange = (network) => {
+  const handleNetworkChange = useCallback((network) => {
+    console.log(`Network changed to: ${network.chainName}`);
     setCurrentNetwork(network);
-    if (network) {
-      const address = getContractAddress(network.chainId);
-      setContractAddress(address);
-      console.log(`Network changed to: ${network.chainName}`);
-      console.log(`Contract address: ${address}`);
+    
+    // Clear current data
+    setContract(null);
+    setProposalDetails([]);
+    
+    // Initialize contract for new network
+    initializeContract(network);
+  }, []);
 
-      // Initialize contract with new network
-      initializeContract(network);
-    } else {
-      setContractAddress("");
-      setDaoContract(null);
-      setProposalDetails([]);
-    }
-  };
-
-  // Initialize contract
-  const initializeContract = async (network) => {
-
+  // Initialize contract for reading data
+  const initializeContract = useCallback(async (network = currentNetwork) => {
     const contractAddr = getContractAddress(network.chainId);
-
     if (!contractAddr || contractAddr === '0x0000000000000000000000000000000000000000') {
-
-      setDaoContract(null);
-      setProposalDetails([]);
-      setIsLoading(false);
-      return;
-    }
-
-    if (typeof window.ethereum === 'undefined') {
-      toast.error("Please install MetaMask!");
-      setIsLoading(false);
+      console.warn(`No contract deployed on ${network.chainName}`);
+      setContract(null);
+      setContractAddress('');
       return;
     }
 
     try {
-      setIsLoading(true);
-
-      const networkRpcUrl = getRpcUrl(network?.chainId);
-      console.log(`🔗 Using RPC URL: ${networkRpcUrl}`);
-      const provider = new ethers.JsonRpcProvider(networkRpcUrl);
-      const contract = new ethers.Contract(contractAddr, daoABI, provider); // Use provider for read-only
-      setDaoContract(contract);
-
-      // Fetch all proposal IDs
-      const ids = await contract.getAllProposalIds();
-      await fetchProposalDetails(ids, contract);
-
+      // Use network RPC URL for read-only operations (no wallet needed)
+      const rpcUrl = getRpcUrl(network.chainId);
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      const contractInstance = new ethers.Contract(contractAddr, daoABI, provider);
+      
+      setContract(contractInstance);
+      setContractAddress(contractAddr);
+      
+      console.log(`📄 Contract initialized on ${network.chainName}: ${contractAddr}`);
+      
+      // Fetch initial data
+      await fetchProposals(contractInstance);
     } catch (error) {
-      console.error("Init error:", error.message);
-      if (error.message.includes("could not detect network")) {
-        toast.error("❌ Failed to connect to the network. Please check your wallet connection.");
-      } else if (error.message.includes("user rejected")) {
-        toast.error("❌ Connection rejected by user.");
-      }
-      setDaoContract(null);
-      setProposalDetails([]);
-    } finally {
-      setIsLoading(false);
+      console.error('❌ Error initializing contract:', error);
+      setContract(null);
     }
-  };
+  }, [currentNetwork]);
 
-  // Fetch proposal details
-  const fetchProposalDetails = async (ids, contract) => {
-    if (!contract) {
-      console.warn('⚠️ Contract not provided for proposals');
-      return;
-    }
+  // Fetch proposal data from contract
+  const fetchProposals = useCallback(async (contractInstance = contract) => {
+    if (!contractInstance) return;
 
     try {
-      console.log('📋 Fetching recent proposals for landing page...');
-
-      const proposalCount = await contract.getTotalProposals();
-
-      const totalCount = Number(proposalCount);
-      console.log('📊 Total proposals available:', totalCount);
-
-      if (totalCount === 0) {
-        console.log('📋 No proposals found');
+      setIsDataLoading(true);
+      console.log('📋 Fetching proposals from contract...');
+      
+      const proposalIds = await contractInstance.getAllProposalIds();
+      console.log('📋 Found proposal IDs:', proposalIds.length);
+      
+      if (!proposalIds.length) {
         setProposalDetails([]);
         return;
       }
 
-      // Fetch the most recent proposals (limit to 6 for landing page)
-      const recentLimit = Math.min(6, totalCount);
-      const startIndex = Math.max(0, totalCount - recentLimit);
-
-      console.log(`🔍 Fetching ${recentLimit} most recent proposals (starting from ${startIndex})...`);
-
-      const recentProposals = [];
-
-      for (let i = totalCount - 1; i >= startIndex && recentProposals.length < recentLimit; i--) {
+      // Fetch ALL proposals for marketplace page (not limited like Landing)
+      const proposals = [];
+      
+      for (let i = 0; i < proposalIds.length; i++) {
         try {
-          const proposal = await contract.getProposal(i);
-
-          if (proposal) {
-            // Format proposal data for display
-            const currentTime = Math.floor(Date.now() / 1000);
-            const timeRemaining = proposal.endTime ? Math.max(0, Number(proposal.endTime) - currentTime) : 0;
-
-            const formattedProposal = {
-              id: i.toString(),
-              projectName: proposal.projectName || `Proposal #${i}`,
-              description: proposal.description || 'No description available',
-              fundingGoal: proposal.fundingGoal ? ethers.formatEther(proposal.fundingGoal) : '0',
-              totalInvested: proposal.totalInvested ? ethers.formatEther(proposal.totalInvested) : '0',
-              proposer: proposal.proposer || '0x0000000000000000000000000000000000000000',
-              executed: Boolean(proposal.executed),
-              passed: Boolean(proposal.passed),
-              endTime: proposal.endTime ? Number(proposal.endTime) : 0,
-              timeRemaining,
-              deadline: proposal.endTime ? new Date(Number(proposal.endTime) * 1000).toLocaleString() : 'No deadline',
-              // Status for display
-              status: proposal.executed ?
-                (proposal.passed ? 'PASSED' : 'FAILED') :
-                (timeRemaining > 0 ? 'ACTIVE' : 'PENDING')
-            };
-
-            recentProposals.push(formattedProposal);
-            console.log(`✅ Loaded proposal ${i}: ${formattedProposal.projectName}`);
-          }
+          const id = proposalIds[i];
+          const proposal = await contractInstance.getProposal(id);
+          
+          proposals.push({
+            id: Number(id),
+            proposer: proposal.proposer,
+            description: proposal.description || `Proposal #${id}`,
+            projectName: proposal.projectName || proposal.description?.slice(0, 50) + '...' || `Proposal #${id}`,
+            fundingGoal: ethers.formatEther(proposal.fundingGoal || '0'),
+            totalInvested: ethers.formatEther(proposal.totalInvested || '0'),
+            votersFor: Number(proposal.votersFor || 0),
+            votersAgainst: Number(proposal.votersAgainst || 0),
+            endTime: Number(proposal.endTime) || 0,
+            executed: Boolean(proposal.executed),
+            passed: Boolean(proposal.passed),
+            rejected: Boolean(proposal.rejected)
+          });
         } catch (error) {
-          console.warn(`⚠️ Could not fetch proposal ${i}:`, error.message);
+          console.warn(`⚠️ Failed to fetch proposal ${proposalIds[i]}:`, error.message);
         }
       }
-
-      console.log(`📋 Loaded ${recentProposals.length} recent proposals for display`);
-      setProposalDetails(recentProposals);
-
+      
+      setProposalDetails(proposals);
+      console.log(`📋 Loaded ${proposals.length} proposals for marketplace`);
     } catch (error) {
-      //  console.error('❌ Error fetching recent proposals:', error);
-      //  toast.error('Failed to fetch recent proposals');
+      console.error('❌ Error fetching proposals:', error);
       setProposalDetails([]);
+    } finally {
+      setIsDataLoading(false);
     }
+  }, [contract]);
+
+  // Refresh data handler
+  const handleRefreshData = useCallback(async () => {
+    if (currentNetwork && contractAddress) {
+      console.log('🔄 Refreshing proposal data from Marketplace...');
+      await fetchProposals();
+      console.log('📋 After refresh, proposals count:', proposalDetails.length);
+    }
+  }, [currentNetwork, contractAddress, fetchProposals, proposalDetails.length]);
+
+  // Navigation function for proposal details
+  const proposalData = (pId) => {
+    console.log(pId, "id");
+    localStorage.setItem("proposalId", pId);
+    navigate(`/proposal`);
   };
 
-  // Re-fetch proposals on network change
+  // Initialize contract on component mount
   useEffect(() => {
-    if (daoContract && currentNetwork) {
-      const fetchProposalsOnNetworkChange = async () => {
-        try {
-          setIsLoading(true);
-          const ids = await daoContract.getAllProposalIds();
-          await fetchProposalDetails(ids, daoContract);
-        } catch (error) {
+    initializeContract();
+  }, [initializeContract]);
 
-          setProposalDetails([]);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchProposalsOnNetworkChange();
-    }
-  }, [daoContract, currentNetwork]);
-
-
-  const proposalData = (pId) => {
-    console.log(pId, "id")
-    localStorage.setItem("proposalId", pId)
-    navigate(`/proposal`)
-  }
   return (
     <>
       {/* Navigation */}
@@ -514,27 +463,36 @@ function MarketPlace() {
         </div>
       </section>
 
-      {/* Stats Section */}
-
-
-      {/* Features Section */}
-
-
+      {/* Active Proposals Section */}
       <section id="proposals" className="py-5 bg-light">
         <div className="container">
           <div className="text-center mb-5">
             <h2 className="display-5 fw-bold">Active Proposals</h2>
             <p className="lead text-muted">Discover innovative projects seeking funding through our DAO</p>
-            {currentNetwork && (
-              <small className="text-muted">
-                <i className="fas fa-network-wired me-1"></i>
-                Connected to {currentNetwork.chainName}
-              </small>
-            )}
+            <small className="text-muted d-block">
+              <i className="fas fa-network-wired me-1"></i>
+              Connected to {currentNetwork.chainName}
+            </small>
+            <div className="mt-2">
+              {proposalDetails.length > 0 && (
+                <small className="badge bg-primary me-2">
+                  {proposalDetails.length} Proposals Available
+                </small>
+              )}
+              <button
+                className="btn btn-sm btn-outline-primary"
+                onClick={handleRefreshData}
+                disabled={isDataLoading}
+                title="Refresh proposals"
+              >
+                <i className={`fas fa-sync-alt ${isDataLoading ? 'fa-spin' : ''} me-1`}></i>
+                Refresh
+              </button>
+            </div>
           </div>
 
           {/* Loading State */}
-          {isLoading && (
+          {isDataLoading && (
             <div className="text-center py-5">
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading proposals...</span>
@@ -543,26 +501,8 @@ function MarketPlace() {
             </div>
           )}
 
-          {/* No Network Connected */}
-          {!currentNetwork && !isLoading && (
-            <div className="text-center py-5">
-              <div className="mb-4">
-                <i className="fas fa-plug fa-4x text-muted opacity-50"></i>
-              </div>
-              <h4 className="text-muted">No Network Connected</h4>
-              <p className="text-muted mb-4">Please connect to a network to view proposals</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="btn btn-outline-primary"
-              >
-                <i className="fas fa-refresh me-2"></i>
-                Refresh Page
-              </button>
-            </div>
-          )}
-
           {/* No Proposals Found */}
-          {currentNetwork && !isLoading && proposalDetails.length === 0 && (
+          {!isDataLoading && proposalDetails.length === 0 && (
             <div className="text-center py-5">
               <div className="mb-4">
                 <i className="fas fa-inbox fa-4x text-muted opacity-50"></i>
@@ -582,7 +522,7 @@ function MarketPlace() {
                   Submit Proposal
                 </button>
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => initializeContract()}
                   className="btn btn-outline-secondary"
                 >
                   <i className="fas fa-refresh me-2"></i>
@@ -593,7 +533,7 @@ function MarketPlace() {
           )}
 
           {/* Proposals Grid */}
-          {!isLoading && proposalDetails.length > 0 && (
+          {!isDataLoading && proposalDetails.length > 0 && (
             <div className="row g-4">
               {proposalDetails.map((proposal) => (
                 <div key={proposal.id} className="col-md-6 col-lg-4">
@@ -642,11 +582,11 @@ function MarketPlace() {
                           <div className="row g-2">
                             <div className="col-6">
                               <small className="text-muted d-block">Funding Goal</small>
-                              <strong className="text-primary">{proposal.fundingGoal} ETH</strong>
+                              <strong className="text-primary">{proposal.fundingGoal} GNJS</strong>
                             </div>
                             <div className="col-6">
                               <small className="text-muted d-block">Invested</small>
-                              <strong className="text-success">{proposal.totalInvested} ETH</strong>
+                              <strong className="text-success">{proposal.totalInvested} GNJS</strong>
                             </div>
                           </div>
                         </div>
@@ -675,7 +615,7 @@ function MarketPlace() {
           )}
 
           {/* Show More Button */}
-          {!isLoading && proposalDetails.length > 0 && (
+          {!isDataLoading && proposalDetails.length > 0 && (
             <div className="text-center mt-5">
               <button
                 onClick={navigateToDashboard}
