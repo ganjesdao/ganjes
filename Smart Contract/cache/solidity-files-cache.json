@@ -1,0 +1,319 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "/Users/ramavatarrai/Desktop/React_projects/Ganjes/Smart Contract/DAOS/contracts/GanjesDAOOptimized.sol": {
+      "lastModificationDate": 1755763037500,
+      "contentHash": "cba3eaaf06c86aabfbda8efbb6201a83",
+      "sourceName": "contracts/GanjesDAOOptimized.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./interfaces/IERC20.sol",
+        "./libraries/ReentrancyGuard.sol",
+        "./libraries/Pausable.sol",
+        "./libraries/SafeERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "GanjesDAOOptimized"
+      ]
+    },
+    "/Users/ramavatarrai/Desktop/React_projects/Ganjes/Smart Contract/DAOS/contracts/interfaces/IERC20.sol": {
+      "lastModificationDate": 1754050322846,
+      "contentHash": "e00d24eeaabaf7eddf18035cfa198912",
+      "sourceName": "contracts/interfaces/IERC20.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "IERC20"
+      ]
+    },
+    "/Users/ramavatarrai/Desktop/React_projects/Ganjes/Smart Contract/DAOS/contracts/libraries/Pausable.sol": {
+      "lastModificationDate": 1754043899061,
+      "contentHash": "a1a383c8a0b92a5958c998b6238c1059",
+      "sourceName": "contracts/libraries/Pausable.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Pausable"
+      ]
+    },
+    "/Users/ramavatarrai/Desktop/React_projects/Ganjes/Smart Contract/DAOS/contracts/libraries/SafeERC20.sol": {
+      "lastModificationDate": 1755708067581,
+      "contentHash": "bfa00d429224d926ffbed7ced6d792aa",
+      "sourceName": "contracts/libraries/SafeERC20.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../interfaces/IERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "Address",
+        "SafeERC20"
+      ]
+    },
+    "/Users/ramavatarrai/Desktop/React_projects/Ganjes/Smart Contract/DAOS/contracts/libraries/ReentrancyGuard.sol": {
+      "lastModificationDate": 1754043899063,
+      "contentHash": "1e87ecce8c78147875a32ceb349589d9",
+      "sourceName": "contracts/libraries/ReentrancyGuard.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ReentrancyGuard"
+      ]
+    },
+    "/Users/ramavatarrai/Desktop/React_projects/Ganjes/Smart Contract/DAOS/contracts/modules/ProposalManagement.sol": {
+      "lastModificationDate": 1755705572330,
+      "contentHash": "fc05d29a21eadf62393edb33e0439697",
+      "sourceName": "contracts/modules/ProposalManagement.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../interfaces/IERC20.sol",
+        "../libraries/ReentrancyGuard.sol",
+        "../libraries/Pausable.sol",
+        "../libraries/SafeERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "ProposalManagement"
+      ]
+    },
+    "/Users/ramavatarrai/Desktop/React_projects/Ganjes/Smart Contract/DAOS/contracts/interfaces/IGanjesDAO.sol": {
+      "lastModificationDate": 1754043899060,
+      "contentHash": "9b2580cc103e3cbcd64c6849ee174f35",
+      "sourceName": "contracts/interfaces/IGanjesDAO.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "IGanjesDAO"
+      ]
+    },
+    "/Users/ramavatarrai/Desktop/React_projects/Ganjes/Smart Contract/DAOS/contracts/gnjToken.sol": {
+      "lastModificationDate": 1755780151045,
+      "contentHash": "a22a19b86e55f100707eb8284da5e82b",
+      "sourceName": "contracts/gnjToken.sol",
+      "solcConfig": {
+        "version": "0.8.20",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "viaIR": true,
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.20"
+      ],
+      "artifacts": [
+        "BEP20Token",
+        "Context",
+        "IBEP20",
+        "MultiSigOwnable",
+        "Pausable",
+        "ReentrancyGuard"
+      ]
+    }
+  }
+}

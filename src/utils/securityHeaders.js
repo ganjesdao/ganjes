@@ -58,7 +58,7 @@ export const CSP_CONFIG = {
   // Connect sources (for AJAX, WebSocket, etc.)
   'connect-src': [
     "'self'",
-    'https://api.ganjes.in', // Your API domain
+    'https://api.ganjes.world', // Your API domain
     'https://mainnet.infura.io',
     'https://sepolia.infura.io',
     'https://bsc-dataseed1.binance.org',
@@ -260,7 +260,7 @@ export class SecureFetch {
       // Only allow same-origin or whitelisted domains
       const allowedDomains = [
         window.location.origin,
-        'https://api.ganjes.in',
+        'https://api.ganjes.world',
         'https://mainnet.infura.io',
         'https://sepolia.infura.io',
         'https://bsc-dataseed1.binance.org',
@@ -289,7 +289,6 @@ export class SecureFetch {
       // Use the original fetch to avoid infinite recursion
       const originalFetch = window.__originalFetch || fetch;
       const response = await originalFetch(url, secureOptions);
-
       // Check for security headers in response
       this.validateResponseHeaders(response);
 
@@ -299,14 +298,12 @@ export class SecureFetch {
       throw error;
     }
   }
-
   /**
    * Convenience method for GET requests
    */
   static async get(url, options = {}) {
     return this.fetch(url, { ...options, method: 'GET' });
   }
-
   /**
    * Convenience method for POST requests
    */

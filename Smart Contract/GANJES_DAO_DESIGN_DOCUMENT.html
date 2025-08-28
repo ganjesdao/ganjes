@@ -1,0 +1,1138 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Ganjes DAO - Comprehensive Design Document</title>
+        
+    <style>
+    @media print {
+        @page {
+            margin: 0.75in;
+            size: letter;
+        }
+        
+        body {
+            font-size: 11pt;
+            line-height: 1.4;
+        }
+        
+        h1 {
+            page-break-before: always;
+            margin-top: 0;
+        }
+        
+        h1:first-of-type {
+            page-break-before: avoid;
+        }
+        
+        table {
+            page-break-inside: avoid;
+        }
+        
+        pre {
+            page-break-inside: avoid;
+            font-size: 9pt;
+        }
+        
+        .no-print {
+            display: none;
+        }
+    }
+    
+    body {
+        font-family: Georgia, 'Times New Roman', serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 100%;
+        margin: 0 auto;
+        background: white;
+    }
+    
+    h1 {
+        color: #1a237e;
+        border-bottom: 3px solid #3f51b5;
+        padding-bottom: 10px;
+        margin-top: 2em;
+        margin-bottom: 1em;
+        font-size: 2.2em;
+    }
+    
+    h1:first-of-type {
+        margin-top: 0;
+        text-align: center;
+        border-bottom: 5px solid #3f51b5;
+        padding-bottom: 20px;
+    }
+    
+    h2 {
+        color: #283593;
+        border-bottom: 2px solid #9c27b0;
+        padding-bottom: 8px;
+        margin-top: 2em;
+        margin-bottom: 1em;
+        font-size: 1.6em;
+    }
+    
+    h3 {
+        color: #2196f3;
+        margin-top: 1.5em;
+        margin-bottom: 0.8em;
+        font-size: 1.3em;
+    }
+    
+    h4 {
+        color: #4caf50;
+        margin-top: 1.2em;
+        margin-bottom: 0.6em;
+        font-size: 1.1em;
+    }
+    
+    p {
+        margin-bottom: 1em;
+        text-align: justify;
+    }
+    
+    ul, ol {
+        margin-bottom: 1em;
+        padding-left: 2em;
+    }
+    
+    li {
+        margin-bottom: 0.3em;
+    }
+    
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1.5em 0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    table, th, td {
+        border: 1px solid #ddd;
+    }
+    
+    th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px;
+        text-align: left;
+        font-weight: bold;
+    }
+    
+    td {
+        padding: 10px;
+        vertical-align: top;
+    }
+    
+    tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+    
+    tr:hover {
+        background-color: #e3f2fd;
+    }
+    
+    code {
+        background-color: #f5f5f5;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.9em;
+        color: #d63384;
+        border: 1px solid #e9ecef;
+    }
+    
+    pre {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 1px solid #dee2e6;
+        border-left: 4px solid #0d6efd;
+        border-radius: 6px;
+        padding: 1.2em;
+        overflow-x: auto;
+        margin: 1.5em 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    pre code {
+        background-color: transparent;
+        padding: 0;
+        border: none;
+        color: #212529;
+        font-size: 0.85em;
+    }
+    
+    blockquote {
+        border-left: 5px solid #17a2b8;
+        margin: 1.5em 0;
+        padding: 1em 1.5em;
+        background-color: #e7f3ff;
+        color: #0c5460;
+        font-style: italic;
+        border-radius: 0 6px 6px 0;
+    }
+    
+    /* Special styling for ASCII diagrams */
+    pre:has-text("┌"), pre:has-text("│"), pre:has-text("└") {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-left: 4px solid #2196f3;
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+        font-size: 0.8em;
+        line-height: 1.2;
+    }
+    
+    /* Table of contents styling */
+    #table-of-contents + ul {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffcc02 100%);
+        border: 2px solid #ff9800;
+        border-radius: 8px;
+        padding: 1.5em;
+        margin: 2em 0;
+    }
+    
+    /* Status indicators */
+    .status-complete::before { content: "✅ "; }
+    .status-progress::before { content: "🔄 "; }
+    .status-planned::before { content: "📋 "; }
+    
+    /* Architecture diagram boxes */
+    .architecture-box {
+        border: 2px solid #6c757d;
+        border-radius: 8px;
+        padding: 1em;
+        margin: 1em 0;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        font-family: monospace;
+        font-size: 0.9em;
+    }
+    
+    /* Highlight important sections */
+    strong {
+        color: #dc3545;
+        font-weight: 600;
+    }
+    
+    em {
+        color: #6610f2;
+        font-style: italic;
+    }
+    
+    /* Links */
+    a {
+        color: #0d6efd;
+        text-decoration: none;
+        border-bottom: 1px dotted #0d6efd;
+    }
+    
+    a:hover {
+        color: #0a58ca;
+        border-bottom: 1px solid #0a58ca;
+    }
+    
+    /* Header with logo space */
+    .document-header {
+        text-align: center;
+        margin-bottom: 3em;
+        padding: 2em;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .document-title {
+        font-size: 2.5em;
+        margin-bottom: 0.5em;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .document-subtitle {
+        font-size: 1.2em;
+        opacity: 0.9;
+    }
+    
+    /* Footer */
+    .document-footer {
+        margin-top: 3em;
+        padding: 2em;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        text-align: center;
+        border-top: 3px solid #6c757d;
+    }
+    
+    /* Print button */
+    .no-print {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+    }
+    
+    .print-button {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .print-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+    
+    /* Responsive design */
+    @media screen and (max-width: 768px) {
+        body {
+            padding: 1em;
+        }
+        
+        .document-title {
+            font-size: 2em;
+        }
+        
+        table {
+            font-size: 0.9em;
+        }
+        
+        pre {
+            font-size: 0.8em;
+        }
+    }
+    </style>
+    
+    </head>
+    <body>
+        <div class="no-print">
+            <button class="print-button" onclick="printDocument()">🖨️ Print to PDF</button>
+        </div>
+        
+        <div class="document-header">
+            <div class="document-title">Ganjes DAO</div>
+            <div class="document-subtitle">Comprehensive Design Document</div>
+        </div>
+        
+        <div class="document-content">
+            <h1 id="ganjes-dao-comprehensive-design-document">Ganjes DAO - Comprehensive Design Document</h1>
+
+<h2 id="table-of-contents">Table of Contents</h2>
+
+<ol>
+<li><a href="#executive-summary">Executive Summary</a></li>
+<li><a href="#system-architecture">System Architecture</a></li>
+<li><a href="#smart-contract-design">Smart Contract Design</a></li>
+<li><a href="#governance-model">Governance Model</a></li>
+<li><a href="#economic-model">Economic Model</a></li>
+<li><a href="#security-framework">Security Framework</a></li>
+<li><a href="#user-experience-design">User Experience Design</a></li>
+<li><a href="#technical-specifications">Technical Specifications</a></li>
+<li><a href="#deployment-architecture">Deployment Architecture</a></li>
+<li><a href="#future-roadmap">Future Roadmap</a></li>
+</ol>
+
+<hr />
+
+<h2 id="executive-summary">Executive Summary</h2>
+
+<h3 id="project-vision">Project Vision</h3>
+
+<p>Ganjes DAO is a decentralized autonomous organization designed to democratize project funding through community-driven governance. The platform enables token holders to propose, vote on, and fund innovative projects while maintaining transparency and accountability.</p>
+
+<h3 id="core-objectives">Core Objectives</h3>
+
+<ul>
+<li><strong>Decentralized Funding</strong>: Enable community-driven project funding decisions</li>
+<li><strong>Token-Based Governance</strong>: Implement fair voting mechanisms using token-based voting</li>
+<li><strong>Automated Execution</strong>: Smart contracts handle fund distribution and refunds</li>
+<li><strong>Transparency</strong>: Complete on-chain audit trail of all activities</li>
+<li><strong>Security</strong>: Robust protection mechanisms for user funds and system integrity</li>
+</ul>
+
+<h3 id="key-innovation">Key Innovation</h3>
+
+<p>The Ganjes DAO introduces a unique dual-path proposal success mechanism:
+1. <strong>Funding Achievement</strong>: Proposals pass when reaching funding goals regardless of vote timing
+2. <strong>Community Consensus</strong>: Traditional vote-based approval with token-weighted voting</p>
+
+<hr />
+
+<h2 id="system-architecture">System Architecture</h2>
+
+<h3 id="high-level-architecture">High-Level Architecture</h3>
+
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                     Ganjes DAO Ecosystem                    │
+├─────────────────────────────────────────────────────────────┤
+│                    Frontend Layer                           │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐          │
+│  │   Web App   │ │ Mobile App  │ │   CLI Tools │          │
+│  │  (React)    │ │  (Future)   │ │  (Node.js)  │          │
+│  └─────────────┘ └─────────────┘ └─────────────┘          │
+├─────────────────────────────────────────────────────────────┤
+│                  Blockchain Layer                           │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │                Smart Contracts                          │ │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐      │ │
+│  │  │   Main DAO  │ │Governance   │ │  Proposal   │      │ │
+│  │  │  Contract   │ │   Token     │ │ Management  │      │ │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘      │ │
+│  │                                                         │ │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐      │ │
+│  │  │ Reentrancy  │ │  Pausable   │ │Access Control│      │ │
+│  │  │   Guard     │ │  Module     │ │   Module    │      │ │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘      │ │
+│  └─────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│                Infrastructure Layer                         │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │          BSC Network (Testnet/Mainnet)                  │ │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐      │ │
+│  │  │   BSCScan   │ │    IPFS     │ │ Monitoring  │      │ │
+│  │  │ Integration │ │  (Metadata) │ │   Tools     │      │ │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘      │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+
+<h3 id="component-interaction-flow">Component Interaction Flow</h3>
+
+<pre><code>User Action → Frontend → Web3 Provider → Smart Contract → Blockchain → Event Emission → Frontend Update
+</code></pre>
+
+<hr />
+
+<h2 id="smart-contract-design">Smart Contract Design</h2>
+
+<h3 id="core-contract-architecture">Core Contract Architecture</h3>
+
+<h4 id="1-ganjesdaooptimizedsol-main-contract">1. GanjesDAOOptimized.sol (Main Contract)</h4>
+
+<p><strong>Purpose</strong>: Central hub for all DAO operations</p>
+
+<p><strong>Key Components</strong>:
+- Proposal creation and management
+- Voting mechanism implementation
+- Fund distribution logic
+- Admin role management
+- Emergency controls</p>
+
+<p><strong>State Variables</strong>:</p>
+
+<div class="codehilite">
+<pre><span></span><code><span class="kt">struct</span><span class="w"> </span><span class="nv">Proposal</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">id</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">address</span><span class="w"> </span><span class="nv">proposer</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="nv">description</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="nv">projectName</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="nv">projectLink</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">fundingGoal</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">totalInvested</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">totalVotesFor</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">totalVotesAgainst</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">startTime</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">endTime</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nv">executed</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nv">passed</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="nv">rejected</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">votersFor</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">votersAgainst</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<h4 id="2-simpletokensol-governance-token">2. SimpleToken.sol (Governance Token)</h4>
+
+<p><strong>Purpose</strong>: ERC20 token for governance and investment</p>
+
+<p><strong>Features</strong>:
+- Standard ERC20 functionality
+- Mintable by owner
+- Transfer controls (if needed)
+- Integration with DAO contract</p>
+
+<h4 id="3-proposalmanagementsol-modular-component">3. ProposalManagement.sol (Modular Component)</h4>
+
+<p><strong>Purpose</strong>: Isolated proposal logic for modularity</p>
+
+<p><strong>Functions</strong>:
+- Proposal validation
+- Voting logic
+- Investment tracking
+- Refund mechanisms</p>
+
+<h3 id="security-modules">Security Modules</h3>
+
+<h4 id="1-reentrancyguard">1. ReentrancyGuard</h4>
+
+<ul>
+<li>Prevents reentrancy attacks</li>
+<li>Applied to all state-changing functions</li>
+<li>Gas-efficient implementation</li>
+</ul>
+
+<h4 id="2-pausable">2. Pausable</h4>
+
+<ul>
+<li>Emergency stop functionality</li>
+<li>Admin-controlled pause/unpause</li>
+<li>Graceful degradation</li>
+</ul>
+
+<h4 id="3-accesscontrol">3. AccessControl</h4>
+
+<ul>
+<li>Multi-admin system</li>
+<li>Role-based permissions</li>
+<li>Admin limits (max 10 admins)</li>
+</ul>
+
+<hr />
+
+<h2 id="governance-model">Governance Model</h2>
+
+<h3 id="voting-mechanisms">Voting Mechanisms</h3>
+
+<h4 id="1-token-based-voting">1. Token-Based Voting</h4>
+
+<ul>
+<li><strong>Vote Weight</strong>: Proportional to token holdings</li>
+<li><strong>Investment Voting</strong>: Separate investment amounts</li>
+<li><strong>Minimum Thresholds</strong>: Configurable minimum investment (10 tokens)</li>
+</ul>
+
+<h4 id="2-proposal-success-criteria">2. Proposal Success Criteria</h4>
+
+<pre><code>Success Conditions:
+┌─────────────────────────────────────────┐
+│  Condition 1: Funding Goal Achievement  │
+│  • Total investments ≥ funding goal     │
+│  • Immediate execution allowed          │
+│  • Overrides voting period              │
+└─────────────────────────────────────────┘
+                     OR
+┌─────────────────────────────────────────┐
+│  Condition 2: Community Consensus       │
+│  • For votes &gt; Against votes            │
+│  • Minimum vote participation (&gt; 0)     │
+│  • After voting period ends             │
+└─────────────────────────────────────────┘
+</code></pre>
+
+<h4 id="3-proposal-lifecycle">3. Proposal Lifecycle</h4>
+
+<pre><code>Create → Vote Period → Execute → Distribute Funds/Refund
+  ↓         ↓            ↓              ↓
+Deposit   Investment   Check         Success: Fund Transfer
+Required  Tracking     Success       Failure: Refunds
+                       Criteria      
+</code></pre>
+
+<h3 id="administrative-structure">Administrative Structure</h3>
+
+<h4 id="multi-admin-system">Multi-Admin System</h4>
+
+<ul>
+<li><strong>Primary Admin</strong>: Cannot be removed, initial deployment admin</li>
+<li><strong>Secondary Admins</strong>: Up to 9 additional admins</li>
+<li><strong>Admin Powers</strong>:
+<ul>
+<li>Proposal execution</li>
+<li>Contract pausing</li>
+<li>Parameter configuration</li>
+<li>Emergency functions</li>
+</ul></li>
+</ul>
+
+<h4 id="governance-parameters">Governance Parameters</h4>
+
+<div class="codehilite">
+<pre><span></span><code><span class="kt">uint256</span><span class="w"> </span><span class="k">public </span><span class="nv">constant</span><span class="w"> </span>MIN_TOKENS_FOR_PROPOSAL<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m m-Decimal">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m m-Decimal">10</span><span class="o">**</span><span class="m m-Decimal">18</span><span class="p">;</span>
+<span class="kt">uint256</span><span class="w"> </span><span class="k">public </span><span class="nv">constant</span><span class="w"> </span>PROPOSAL_DEPOSIT_AMOUNT<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m m-Decimal">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m m-Decimal">10</span><span class="o">**</span><span class="m m-Decimal">18</span><span class="p">;</span>
+<span class="kt">uint256</span><span class="w"> </span><span class="k">public </span><span class="nv">constant</span><span class="w"> </span>MIN_FUNDING_GOAL<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m m-Decimal">10</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m m-Decimal">10</span><span class="o">**</span><span class="m m-Decimal">18</span><span class="p">;</span>
+<span class="kt">uint256</span><span class="w"> </span><span class="k">public </span><span class="nv">constant</span><span class="w"> </span>MAX_FUNDING_GOAL<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m m-Decimal">1000000</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m m-Decimal">10</span><span class="o">**</span><span class="m m-Decimal">18</span><span class="p">;</span>
+<span class="kt">uint256</span><span class="w"> </span><span class="k">public </span><span class="nv">constant</span><span class="w"> </span>PROPOSAL_COOLDOWN<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m m-Decimal">1</span><span class="w"> </span>hours<span class="p">;</span>
+<span class="kt">uint256</span><span class="w"> </span><span class="k">public </span><span class="nv">constant</span><span class="w"> </span>MAX_PROPOSALS_PER_USER<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m m-Decimal">10</span><span class="p">;</span>
+</code></pre>
+</div>
+
+<hr />
+
+<h2 id="economic-model">Economic Model</h2>
+
+<h3 id="token-economics">Token Economics</h3>
+
+<h4 id="token-distribution">Token Distribution</h4>
+
+<ul>
+<li><strong>Initial Supply</strong>: Configurable (typically 1,000,000 tokens)</li>
+<li><strong>Decimals</strong>: 18 (standard ERC20)</li>
+<li><strong>Symbol</strong>: GANJES (configurable)</li>
+</ul>
+
+<h4 id="token-utilities">Token Utilities</h4>
+
+<ol>
+<li><strong>Governance Rights</strong>: Voting power in proposals</li>
+<li><strong>Investment Medium</strong>: Fund proposals through token investment</li>
+<li><strong>Access Control</strong>: Minimum balance requirements for participation</li>
+<li><strong>Incentive Alignment</strong>: Stake-based participation</li>
+</ol>
+
+<h3 id="financial-flows">Financial Flows</h3>
+
+<h4 id="proposal-creation-flow">Proposal Creation Flow</h4>
+
+<pre><code>Proposer → Approves 100 tokens → Creates Proposal → Tokens Locked → 
+Success: Tokens Remain Locked | Failure: Tokens Refunded
+</code></pre>
+
+<h4 id="investment-flow">Investment Flow</h4>
+
+<pre><code>Investor → Approves Investment → Votes → Tokens Locked →
+Success: Funding to Proposer | Failure: Refund to Investor
+</code></pre>
+
+<h4 id="treasury-management">Treasury Management</h4>
+
+<ul>
+<li><strong>DAO Treasury</strong>: Holds governance tokens for funding</li>
+<li><strong>Funding Source</strong>: Pre-funded or minted tokens</li>
+<li><strong>Reserve Management</strong>: Ensures adequate funding for approved proposals</li>
+</ul>
+
+<h3 id="economic-security-mechanisms">Economic Security Mechanisms</h3>
+
+<h4 id="1-proposal-deposits">1. Proposal Deposits</h4>
+
+<ul>
+<li><strong>Amount</strong>: 100 tokens per proposal</li>
+<li><strong>Purpose</strong>: Prevent spam and ensure commitment</li>
+<li><strong>Refund Conditions</strong>: Failed proposals only</li>
+</ul>
+
+<h4 id="2-investment-locks">2. Investment Locks</h4>
+
+<ul>
+<li><strong>Duration</strong>: Until proposal completion</li>
+<li><strong>Protection</strong>: Prevents double-voting</li>
+<li><strong>Refund Guarantee</strong>: Automated for failed proposals</li>
+</ul>
+
+<h4 id="3-minimum-thresholds">3. Minimum Thresholds</h4>
+
+<ul>
+<li><strong>Proposal Creation</strong>: 100 token minimum balance</li>
+<li><strong>Investment</strong>: 10 token minimum (configurable)</li>
+<li><strong>Funding Goals</strong>: 10 - 1,000,000 token range</li>
+</ul>
+
+<hr />
+
+<h2 id="security-framework">Security Framework</h2>
+
+<h3 id="security-principles">Security Principles</h3>
+
+<h4 id="1-defense-in-depth">1. Defense in Depth</h4>
+
+<ul>
+<li>Multiple security layers</li>
+<li>Redundant protection mechanisms</li>
+<li>Fail-safe defaults</li>
+</ul>
+
+<h4 id="2-principle-of-least-privilege">2. Principle of Least Privilege</h4>
+
+<ul>
+<li>Minimal necessary permissions</li>
+<li>Role-based access control</li>
+<li>Time-limited admin actions</li>
+</ul>
+
+<h4 id="3-transparency-and-auditability">3. Transparency and Auditability</h4>
+
+<ul>
+<li>Complete event logging</li>
+<li>Open-source code</li>
+<li>Formal verification (planned)</li>
+</ul>
+
+<h3 id="security-implementations">Security Implementations</h3>
+
+<h4 id="1-smart-contract-security">1. Smart Contract Security</h4>
+
+<div class="codehilite">
+<pre><span></span><code><span class="c1">// Reentrancy Protection</span>
+<span class="kt">modifier</span><span class="w"> </span>nonReentrant<span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">require</span><span class="p">(</span>_status<span class="w"> </span><span class="o">!=</span><span class="w"> </span>_ENTERED<span class="p">,</span><span class="w"> </span><span class="s2">&quot;ReentrancyGuard: reentrant call&quot;</span><span class="p">);</span>
+<span class="w">    </span>_status<span class="w"> </span><span class="o">=</span><span class="w"> </span>_ENTERED<span class="p">;</span>
+<span class="w">    </span>_<span class="p">;</span>
+<span class="w">    </span>_status<span class="w"> </span><span class="o">=</span><span class="w"> </span>_NOT_ENTERED<span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// Access Control</span>
+<span class="kt">modifier</span><span class="w"> </span>onlyAdmin<span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">require</span><span class="p">(</span>isAdmin<span class="p">[</span><span class="k">msg.sender</span><span class="p">],</span><span class="w"> </span><span class="s2">&quot;Not authorized admin&quot;</span><span class="p">);</span>
+<span class="w">    </span>_<span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// Pause Mechanism</span>
+<span class="kt">modifier</span><span class="w"> </span>whenNotPausedCustom<span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">require</span><span class="p">(</span><span class="o">!</span>paused<span class="p">,</span><span class="w"> </span><span class="s2">&quot;Contract is paused&quot;</span><span class="p">);</span>
+<span class="w">    </span>_<span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<h4 id="2-economic-security">2. Economic Security</h4>
+
+<ul>
+<li><strong>Stake-based participation</strong>: Users must hold tokens to participate</li>
+<li><strong>Investment locks</strong>: Prevent manipulation during voting</li>
+<li><strong>Deposit requirements</strong>: Economic cost for proposal creation</li>
+<li><strong>Refund mechanisms</strong>: Protect user funds in failed proposals</li>
+</ul>
+
+<h4 id="3-operational-security">3. Operational Security</h4>
+
+<ul>
+<li><strong>Multi-signature requirements</strong>: For critical admin functions (planned)</li>
+<li><strong>Time delays</strong>: For sensitive operations (planned)</li>
+<li><strong>Emergency pause</strong>: Immediate stop capability</li>
+<li><strong>Upgrade mechanisms</strong>: Future contract improvements (planned)</li>
+</ul>
+
+<h3 id="risk-mitigation">Risk Mitigation</h3>
+
+<h4 id="1-smart-contract-risks">1. Smart Contract Risks</h4>
+
+<ul>
+<li><strong>Code Audits</strong>: Regular professional audits</li>
+<li><strong>Testing</strong>: Comprehensive test coverage</li>
+<li><strong>Formal Verification</strong>: Mathematical proof of correctness (planned)</li>
+</ul>
+
+<h4 id="2-economic-risks">2. Economic Risks</h4>
+
+<ul>
+<li><strong>Token Volatility</strong>: Stable mechanisms regardless of price</li>
+<li><strong>Liquidity Risk</strong>: Treasury management protocols</li>
+<li><strong>Governance Attacks</strong>: Minimum thresholds and time delays</li>
+</ul>
+
+<h4 id="3-operational-risks">3. Operational Risks</h4>
+
+<ul>
+<li><strong>Admin Key Security</strong>: Hardware wallet requirements</li>
+<li><strong>Network Risks</strong>: Multi-network deployment (planned)</li>
+<li><strong>Oracle Dependencies</strong>: Minimized external dependencies</li>
+</ul>
+
+<hr />
+
+<h2 id="user-experience-design">User Experience Design</h2>
+
+<h3 id="user-journey-mapping">User Journey Mapping</h3>
+
+<h4 id="1-proposer-journey">1. Proposer Journey</h4>
+
+<pre><code>Connect Wallet → Check Balance → Create Proposal → Monitor Voting → 
+Receive Funding (Success) | Get Deposit Back (Failure)
+</code></pre>
+
+<h4 id="2-investor-journey">2. Investor Journey</h4>
+
+<pre><code>Connect Wallet → Browse Proposals → Evaluate Project → Vote/Invest → 
+Monitor Progress → Receive Returns (Success) | Get Refund (Failure)
+</code></pre>
+
+<h4 id="3-admin-journey">3. Admin Journey</h4>
+
+<pre><code>Monitor System → Execute Proposals → Handle Emergency → 
+Configure Parameters → Maintain System Health
+</code></pre>
+
+<h3 id="interface-design-principles">Interface Design Principles</h3>
+
+<h4 id="1-simplicity">1. Simplicity</h4>
+
+<ul>
+<li>Clean, intuitive interfaces</li>
+<li>Minimal cognitive load</li>
+<li>Clear call-to-action buttons</li>
+</ul>
+
+<h4 id="2-transparency">2. Transparency</h4>
+
+<ul>
+<li>Real-time data display</li>
+<li>Clear voting status</li>
+<li>Comprehensive proposal information</li>
+</ul>
+
+<h4 id="3-accessibility">3. Accessibility</h4>
+
+<ul>
+<li>Multi-device support</li>
+<li>Wallet integration</li>
+<li>Error handling with clear messages</li>
+</ul>
+
+<h3 id="cli-tools-design">CLI Tools Design</h3>
+
+<h4 id="1-interactive-scripts">1. Interactive Scripts</h4>
+
+<div class="codehilite">
+<pre><span></span><code>npm<span class="w"> </span>run<span class="w"> </span>create-proposal<span class="w">  </span><span class="c1"># Guided proposal creation</span>
+npm<span class="w"> </span>run<span class="w"> </span>vote-proposal<span class="w">    </span><span class="c1"># Interactive voting interface</span>
+npm<span class="w"> </span>run<span class="w"> </span>check-status<span class="w">     </span><span class="c1"># Proposal status checker</span>
+</code></pre>
+</div>
+
+<h4 id="2-admin-tools">2. Admin Tools</h4>
+
+<div class="codehilite">
+<pre><span></span><code>npm<span class="w"> </span>run<span class="w"> </span>admin-panel<span class="w">      </span><span class="c1"># Administrative interface</span>
+npm<span class="w"> </span>run<span class="w"> </span>emergency-pause<span class="w">  </span><span class="c1"># Emergency controls</span>
+npm<span class="w"> </span>run<span class="w"> </span>system-health<span class="w">    </span><span class="c1"># System diagnostics</span>
+</code></pre>
+</div>
+
+<hr />
+
+<h2 id="technical-specifications">Technical Specifications</h2>
+
+<h3 id="blockchain-requirements">Blockchain Requirements</h3>
+
+<h4 id="network-specifications">Network Specifications</h4>
+
+<ul>
+<li><strong>Primary Network</strong>: BSC Testnet (Development)</li>
+<li><strong>Future Networks</strong>: BSC Mainnet, Ethereum, Polygon</li>
+<li><strong>Gas Optimization</strong>: &lt; 500k gas per transaction target</li>
+</ul>
+
+<h4 id="smart-contract-specifications">Smart Contract Specifications</h4>
+
+<pre><code>Contract Size Limits:
+- Main Contract: &lt; 24KB (Ethereum limit)
+- Modular Design: Split into multiple contracts if needed
+- Proxy Pattern: For upgradeability (future)
+
+Gas Efficiency Targets:
+- Proposal Creation: &lt; 200k gas
+- Voting: &lt; 100k gas  
+- Execution: &lt; 150k gas
+</code></pre>
+
+<h3 id="development-stack">Development Stack</h3>
+
+<h4 id="backend-technology">Backend Technology</h4>
+
+<ul>
+<li><strong>Language</strong>: Solidity 0.8.20+</li>
+<li><strong>Framework</strong>: Hardhat</li>
+<li><strong>Testing</strong>: Mocha/Chai with Hardhat</li>
+<li><strong>Security</strong>: OpenZeppelin contracts</li>
+</ul>
+
+<h4 id="frontend-technology-future">Frontend Technology (Future)</h4>
+
+<ul>
+<li><strong>Framework</strong>: React.js</li>
+<li><strong>Web3 Integration</strong>: ethers.js</li>
+<li><strong>UI Library</strong>: Material-UI or Chakra UI</li>
+<li><strong>State Management</strong>: Redux Toolkit</li>
+</ul>
+
+<h4 id="devops-infrastructure">DevOps &amp; Infrastructure</h4>
+
+<ul>
+<li><strong>Version Control</strong>: Git with conventional commits</li>
+<li><strong>CI/CD</strong>: GitHub Actions</li>
+<li><strong>Deployment</strong>: Automated via scripts</li>
+<li><strong>Monitoring</strong>: Custom event monitoring</li>
+</ul>
+
+<h3 id="data-management">Data Management</h3>
+
+<h4 id="on-chain-data">On-Chain Data</h4>
+
+<div class="codehilite">
+<pre><span></span><code><span class="c1">// Core proposal data stored on-chain</span>
+<span class="kt">struct</span><span class="w"> </span><span class="nv">Proposal</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">id</span><span class="p">;</span><span class="w">              </span><span class="c1">// Unique identifier</span>
+<span class="w">    </span><span class="kt">address</span><span class="w"> </span><span class="nv">proposer</span><span class="p">;</span><span class="w">        </span><span class="c1">// Creator address</span>
+<span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="nv">description</span><span class="p">;</span><span class="w">      </span><span class="c1">// Short description</span>
+<span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="nv">projectName</span><span class="p">;</span><span class="w">      </span><span class="c1">// Project title</span>
+<span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="nv">projectLink</span><span class="p">;</span><span class="w">      </span><span class="c1">// Reference URL</span>
+<span class="w">    </span><span class="kt">uint256</span><span class="w"> </span><span class="nv">fundingGoal</span><span class="p">;</span><span class="w">     </span><span class="c1">// Requested amount</span>
+<span class="w">    </span><span class="c1">// ... additional fields</span>
+<span class="p">}</span>
+</code></pre>
+</div>
+
+<h4 id="off-chain-data-future">Off-Chain Data (Future)</h4>
+
+<ul>
+<li><strong>Metadata</strong>: IPFS for large content</li>
+<li><strong>Media</strong>: Images, videos, documents</li>
+<li><strong>Analytics</strong>: Historical data and metrics</li>
+</ul>
+
+<hr />
+
+<h2 id="deployment-architecture">Deployment Architecture</h2>
+
+<h3 id="network-configuration">Network Configuration</h3>
+
+<h4 id="bsc-testnet-deployment">BSC Testnet Deployment</h4>
+
+<div class="codehilite">
+<pre><span></span><code><span class="nt">Network</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BSC Testnet</span>
+<span class="nt">Chain ID</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">97</span>
+<span class="nt">RPC URL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://data-seed-prebsc-1-s1.binance.org:8545/</span>
+<span class="nt">Explorer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://testnet.bscscan.com</span>
+
+<span class="nt">Deployed Contracts</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">DAO Contract</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0xd1F5595bd570d82EEB3A425E9B6bC9d770C3BAa8</span>
+<span class="w">  </span><span class="nt">Token Contract</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0x538Cbe33fc06d67f6Cbb43EfcF6618f3a41BACAb</span>
+</code></pre>
+</div>
+
+<h4 id="production-deployment-strategy">Production Deployment Strategy</h4>
+
+<pre><code>Phase 1: Testnet Deployment (Current)
+- Full functionality testing
+- Community beta testing
+- Security audit completion
+
+Phase 2: Limited Mainnet Launch
+- Small-scale deployment
+- Conservative parameters
+- Limited user access
+
+Phase 3: Full Production Launch
+- Complete feature set
+- Optimized parameters
+- Public access
+</code></pre>
+
+<h3 id="infrastructure-requirements">Infrastructure Requirements</h3>
+
+<h4 id="node-requirements">Node Requirements</h4>
+
+<ul>
+<li><strong>CPU</strong>: Multi-core processor</li>
+<li><strong>RAM</strong>: 8GB+ recommended</li>
+<li><strong>Storage</strong>: SSD preferred</li>
+<li><strong>Network</strong>: Stable internet connection</li>
+</ul>
+
+<h4 id="monitoring-analytics">Monitoring &amp; Analytics</h4>
+
+<ul>
+<li><strong>Contract Monitoring</strong>: Event tracking</li>
+<li><strong>Performance Metrics</strong>: Gas usage, transaction success rates</li>
+<li><strong>Security Monitoring</strong>: Unusual activity detection</li>
+<li><strong>User Analytics</strong>: Usage patterns and engagement</li>
+</ul>
+
+<h3 id="maintenance-procedures">Maintenance Procedures</h3>
+
+<h4 id="regular-maintenance">Regular Maintenance</h4>
+
+<ul>
+<li><strong>Daily</strong>: System health checks</li>
+<li><strong>Weekly</strong>: Performance analysis</li>
+<li><strong>Monthly</strong>: Security reviews</li>
+<li><strong>Quarterly</strong>: Comprehensive audits</li>
+</ul>
+
+<h4 id="emergency-procedures">Emergency Procedures</h4>
+
+<ul>
+<li><strong>Issue Detection</strong>: Automated monitoring alerts</li>
+<li><strong>Response Team</strong>: 24/7 admin availability</li>
+<li><strong>Emergency Pause</strong>: Immediate contract suspension capability</li>
+<li><strong>Recovery Plans</strong>: Step-by-step recovery procedures</li>
+</ul>
+
+<hr />
+
+<h2 id="future-roadmap">Future Roadmap</h2>
+
+<h3 id="phase-1-foundation-current-q3-2025">Phase 1: Foundation (Current - Q3 2025)</h3>
+
+<ul>
+<li>✅ Core smart contract development</li>
+<li>✅ Basic CLI tools</li>
+<li>✅ Testnet deployment</li>
+<li>🔄 Security audit completion</li>
+<li>🔄 Community testing</li>
+</ul>
+
+<h3 id="phase-2-enhancement-q4-2025">Phase 2: Enhancement (Q4 2025)</h3>
+
+<ul>
+<li>📋 Web frontend development</li>
+<li>📋 Advanced governance features</li>
+<li>📋 Multi-network support</li>
+<li>📋 IPFS integration</li>
+<li>📋 Mobile application planning</li>
+</ul>
+
+<h3 id="phase-3-expansion-q1-2026">Phase 3: Expansion (Q1 2026)</h3>
+
+<ul>
+<li>📋 Mainnet deployment</li>
+<li>📋 Cross-chain functionality</li>
+<li>📋 Advanced analytics dashboard</li>
+<li>📋 Community growth programs</li>
+<li>📋 Partnership integrations</li>
+</ul>
+
+<h3 id="phase-4-innovation-q2-2026">Phase 4: Innovation (Q2+ 2026)</h3>
+
+<ul>
+<li>📋 AI-powered proposal analysis</li>
+<li>📋 Automated due diligence</li>
+<li>📋 Advanced DeFi integrations</li>
+<li>📋 Governance token utilities expansion</li>
+<li>📋 DAO federation capabilities</li>
+</ul>
+
+<h3 id="feature-enhancements">Feature Enhancements</h3>
+
+<h4 id="governance-improvements">Governance Improvements</h4>
+
+<ul>
+<li><strong>Delegation</strong>: Vote delegation to trusted parties</li>
+<li><strong>Quadratic Voting</strong>: Reduce whale influence</li>
+<li><strong>Time-Weighted Voting</strong>: Reward long-term holders</li>
+<li><strong>Multi-Stage Voting</strong>: Complex decision processes</li>
+</ul>
+
+<h4 id="technical-upgrades">Technical Upgrades</h4>
+
+<ul>
+<li><strong>Layer 2 Integration</strong>: Polygon, Arbitrum support</li>
+<li><strong>Gas Optimization</strong>: Advanced contract optimizations</li>
+<li><strong>Scalability</strong>: Handling thousands of proposals</li>
+<li><strong>Interoperability</strong>: Cross-chain proposal execution</li>
+</ul>
+
+<h4 id="user-experience">User Experience</h4>
+
+<ul>
+<li><strong>Mobile Apps</strong>: Native iOS/Android applications</li>
+<li><strong>Social Features</strong>: Community discussion platforms</li>
+<li><strong>Gamification</strong>: Reputation systems and rewards</li>
+<li><strong>Educational Content</strong>: Guides and tutorials</li>
+</ul>
+
+<h3 id="research-development">Research &amp; Development</h3>
+
+<h4 id="emerging-technologies">Emerging Technologies</h4>
+
+<ul>
+<li><strong>Zero-Knowledge Proofs</strong>: Privacy-preserving voting</li>
+<li><strong>Machine Learning</strong>: Proposal success prediction</li>
+<li><strong>Blockchain Interoperability</strong>: Multi-chain operations</li>
+<li><strong>Decentralized Storage</strong>: Fully decentralized data</li>
+</ul>
+
+<h4 id="community-development">Community Development</h4>
+
+<ul>
+<li><strong>Developer Tools</strong>: SDKs and APIs</li>
+<li><strong>Integration Partners</strong>: Third-party integrations</li>
+<li><strong>Educational Programs</strong>: Developer and user education</li>
+<li><strong>Open Source Contributions</strong>: Community-driven development</li>
+</ul>
+
+<hr />
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>The Ganjes DAO represents a comprehensive approach to decentralized project funding, combining innovative governance mechanisms with robust security and user experience design. The system's unique dual-path proposal approval mechanism ensures both community consensus and funding efficiency.</p>
+
+<h3 id="key-strengths">Key Strengths</h3>
+
+<ul>
+<li><strong>Innovative Governance</strong>: Dual-path approval mechanism</li>
+<li><strong>Security First</strong>: Comprehensive security framework</li>
+<li><strong>User Centric</strong>: Intuitive interfaces and clear processes</li>
+<li><strong>Scalable Architecture</strong>: Modular design for future expansion</li>
+<li><strong>Community Driven</strong>: Open-source and transparent development</li>
+</ul>
+
+<h3 id="success-metrics">Success Metrics</h3>
+
+<ul>
+<li><strong>User Adoption</strong>: Active proposers and investors</li>
+<li><strong>Project Success Rate</strong>: Funded project completion rates</li>
+<li><strong>Community Growth</strong>: Token holder participation</li>
+<li><strong>Security Record</strong>: Zero security incidents</li>
+<li><strong>Technical Performance</strong>: Optimal gas usage and reliability</li>
+</ul>
+
+<p>The Ganjes DAO is positioned to become a leading platform for decentralized project funding, fostering innovation through community-driven decision-making while maintaining the highest standards of security and user experience.</p>
+
+<hr />
+
+<p><em>This document serves as a comprehensive guide for stakeholders, developers, and users interested in understanding the complete design and architecture of the Ganjes DAO platform.</em></p>
+
+<p><strong>Document Version</strong>: 1.0<br />
+<strong>Last Updated</strong>: August 7, 2025<br />
+<strong>Authors</strong>: Ganjes Development Team</p>
+
+        </div>
+        
+        <div class="document-footer">
+            <p><strong>Document Version:</strong> 1.0</p>
+            <p><strong>Last Updated:</strong> August 7, 2025</p>
+            <p><strong>Authors:</strong> Ganjes Development Team</p>
+        </div>
+        
+        
+    <script>
+    function printDocument() {
+        window.print();
+    }
+    
+    // Enhance code blocks that contain diagrams
+    document.addEventListener('DOMContentLoaded', function() {
+        const codeBlocks = document.querySelectorAll('pre');
+        codeBlocks.forEach(function(block) {
+            const content = block.textContent;
+            if (content.includes('┌') || content.includes('│') || content.includes('└')) {
+                block.style.background = 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)';
+                block.style.borderLeft = '4px solid #2196f3';
+            }
+        });
+        
+        // Add status indicators
+        const listItems = document.querySelectorAll('li');
+        listItems.forEach(function(item) {
+            const text = item.textContent.toLowerCase();
+            if (text.includes('✅') || text.includes('implemented') || text.includes('completed')) {
+                item.classList.add('status-complete');
+            } else if (text.includes('🔄') || text.includes('in progress') || text.includes('partial')) {
+                item.classList.add('status-progress');
+            } else if (text.includes('📋') || text.includes('planned') || text.includes('future')) {
+                item.classList.add('status-planned');
+            }
+        });
+    });
+    </script>
+    
+    </body>
+    </html>
+    

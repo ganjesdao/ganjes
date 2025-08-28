@@ -1,0 +1,47 @@
+{
+  "name": "ganjes-dao-contracts",
+  "version": "1.0.0",
+  "description": "Ganjes DAO Smart Contracts with Security Audit Fixes",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.js --network bsc-testnet",
+    "deploy:optimized": "hardhat run scripts/deployOptimized.js --network bsc-testnet",
+    "verify": "hardhat run scripts/verify.js --network bsc-testnet",
+    "verify-dao": "hardhat run scripts/verifyCurrentContract.js --network bsc-testnet",
+    "node": "hardhat node",
+    "clean": "hardhat clean",
+    "create-proposal": "hardhat run scripts/createProposal.js --network bsc-testnet",
+    "test-proposal": "hardhat run scripts/createTestProposal.js --network bsc-testnet",
+    "get-proposals": "hardhat run scripts/getAllProposals.js --network bsc-testnet",
+    "get-proposals-by-proposer": "hardhat run scripts/getProposerProposals.js --network bsc-testnet",
+    "get-proposal-details": "hardhat run scripts/getProposalDetails.js --network bsc-testnet",
+    "view-proposal": "hardhat run scripts/viewProposal.js --network bsc-testnet",
+    "vote-proposal": "hardhat run scripts/voteOnProposal.js --network bsc-testnet",
+    "manage-voting-time": "hardhat run scripts/manageProposalVotingTime.js --network bsc-testnet",
+    "dao-stats": "hardhat run scripts/getDAOStats.js --network bsc-testnet",
+    "query": "HARDHAT_NETWORK=bsc-testnet node scripts/getDataCmd.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "hardhat": "^2.22.0",
+    "dotenv": "^16.0.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  },
+  "keywords": [
+    "blockchain",
+    "ethereum",
+    "hardhat",
+    "smart-contracts",
+    "solidity",
+    "dao",
+    "bsc"
+  ],
+  "author": "Ganjes Team",
+  "license": "MIT"
+}

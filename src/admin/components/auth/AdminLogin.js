@@ -20,7 +20,6 @@ const AdminLogin = () => {
     email: '',
     password: ''
   });
-
   const from = location.state?.from || '/admin/dashboard';
 
   const handleChange = (e) => {
@@ -32,11 +31,11 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       const result = await dispatch(loginAsync(formData)).unwrap();
       console.log('Login successful:', result);
-      
+
       // Login successful, redirect to intended page
       navigate(from, { replace: true });
     } catch (err) {

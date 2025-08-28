@@ -1,0 +1,25 @@
+{
+  "network": "bsc-testnet",
+  "contracts": {
+    "governanceToken": {
+      "address": "0x538Cbe33fc06d67f6Cbb43EfcF6618f3a41BACAb",
+      "name": "External ERC20 Token (provided)"
+    },
+    "dao": {
+      "address": "0xD5CF710547Bb90D3160Ae346EE2B9ea3A645A7Ca",
+      "name": "GanjesDAOOptimized",
+      "admin": "0x073f5395476468E4fC785301026607bc4ebab128",
+      "config": {
+        "minInvestment": "10000000000000000000",
+        "votingDuration": "300",
+        "minTokensForProposal": "100000000000000000000",
+        "minQuorumPercent": "50"
+      }
+    }
+  },
+  "deployer": "0x073f5395476468E4fC785301026607bc4ebab128",
+  "timestamp": "2025-08-21T07:10:16.853Z",
+  "transactionHashes": {
+    "dao": "0x865603529f501bb0ce612f6e588e95fe0608742028ae1d0145d9ad32dc76ed14"
+  }
+}
