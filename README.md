@@ -1,8 +1,11 @@
 # Getting Started with Ganjes DAO Core Development/Verification
 
-Download the codebase.
+Download the codebase
+
 Raise PRs: 
+
 Add your own audit reports/vuln scans in audits-reports/ 
+
 Issues for feature suggestions and banter. 
 
 
