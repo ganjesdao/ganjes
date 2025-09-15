@@ -1,8 +1,6 @@
 # Ganjes DAO
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) 
-
-[![Discord](https://discord.com/invite/Q3tg4uqBYW)](https://discord.com/invite/Q3tg4uqBYW)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Discord](https://img.shields.io/discord/1234567890?logo=discord)](https://discord.com/invite/Q3tg4uqBYW)
 
 Ganjes DAO is a decentralized autonomous organization focused on [briefly describe the core mission, e.g., "empowering community-driven governance in Web3 through transparent smart contracts and collaborative feature building"]. Our public repository hosts the core smart contracts and Web3 codebase, designed for full transparency, independent audits, and democratic participation. Whether you're a core contributor, investor, or community member, this space enables you to verify systems, raise pull requests (PRs), and engage in pre-launch readiness activities.
 
